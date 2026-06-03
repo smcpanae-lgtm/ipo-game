@@ -1,0 +1,3041 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>THE IPO PATH: 栄光への決断</title>
+<style>
+/* ════════════════════════════════════════════
+   リセット & 変数
+════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #1b4068;   /* ① 明るい海青（near-black → medium navy） */
+  --bg-sb:    #10284a;   /* ① サイドバー：深い海軍色 */
+  --bg-panel: #16335a;   /* ① パネル背景 */
+  --gold:     #ffd700;
+  --gold-dk:  #b8860b;
+  --gold-br:  #ffe866;
+  --cyan:     #00e5ff;
+  --green:    #00dd88;
+  --red:      #ff4455;
+  --yellow:   #ffcc00;
+  --purple:   #cc44ff;
+  --white:    #dde8ff;
+  --dim:      #7aaccc;   /* ① 水色がかったグレー */
+  --text:     #cce8ff;   /* ① 明るい空色テキスト */
+  --radius:   6px;
+}
+
+html, body {
+  height: 100%;
+  color: var(--text);
+  font-family: 'Meiryo UI', 'Noto Sans JP', 'Yu Gothic UI', sans-serif;
+  font-size: 14px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #0a1d38 0%, #122b52 45%, #1b4068 100%);
+  background-attachment: fixed;
+}
+/* タイトル画面表示中は全背景を非表示（fixed overlayが全面を覆う） */
+body:has(.title-screen),
+html:has(.title-screen) {
+  background: #000 !important;
+}
+#story:has(.title-screen) {
+  background: transparent !important;
+}
+
+/* ════════════════════════════════════════════
+   アプリレイアウト（3段グリッド）
+════════════════════════════════════════════ */
+#app {
+  display: grid;
+  grid-template-rows: 64px 1fr 60px auto;
+  height: 100vh;
+}
+
+/* ─── ヘッダー ─── */
+#hdr {
+  background: linear-gradient(90deg, #0a2a5a 0%, #1a5aaa 40%, #1a5aaa 60%, #0a2a5a 100%);
+  border-bottom: 2px solid #3399dd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  position: relative;
+  padding: 0 56px 0 140px;   /* 右:保存ボタン / 左:ロゴ分のスペース確保 */
+}
+#hdr::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg, transparent, transparent 40px,
+    rgba(255,215,0,.03) 40px, rgba(255,215,0,.03) 41px
+  );
+}
+#hdr-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 5px;
+  text-shadow: 0 0 24px rgba(100,200,255,.8), 0 0 60px rgba(100,200,255,.3);
+  position: relative;
+}
+#hdr-deco { color: #88ccee; font-size: 14px; }
+#hdr-save-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255,215,0,.15);
+  border: 1px solid rgba(255,215,0,.4);
+  border-radius: 6px;
+  color: var(--gold);
+  font-size: 11px;
+  line-height: 1.2;
+  padding: 4px 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: background .15s;
+  z-index: 10;
+  display: none;  /* ゲーム中のみ表示 */
+}
+#hdr-save-btn:hover { background: rgba(255,215,0,.3); }
+
+/* ヘッダーロゴ（左側絶対配置） */
+#hdr-logo-link {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  opacity: 0.90;
+  transition: opacity .2s, filter .2s;
+  filter: drop-shadow(0 0 5px rgba(255,215,0,.35));
+  z-index: 10;
+}
+#hdr-logo-link:hover {
+  opacity: 1;
+  filter: drop-shadow(0 0 12px rgba(255,215,0,.7));
+}
+#hdr-logo-img {
+  height: 58px;
+  max-width: 130px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+/* ─── メインエリア（左サイドバー + ストーリー + 右サイドバー）─── */
+#main {
+  display: grid;
+  grid-template-columns: 230px 1fr 200px;
+  overflow: hidden;
+}
+
+/* ════════════════════════════════════════════
+   サイドバー
+════════════════════════════════════════════ */
+#sidebar {
+  background: var(--bg-sb);
+  border-right: 1px solid #1a1a40;
+  overflow-y: auto;
+  padding: 12px 10px;
+  scrollbar-width: thin;
+  scrollbar-color: #2a2a50 var(--bg-sb);
+}
+#sidebar::-webkit-scrollbar { width: 4px; }
+#sidebar::-webkit-scrollbar-track { background: var(--bg-sb); }
+#sidebar::-webkit-scrollbar-thumb { background: #2a5888; border-radius: 4px; }
+
+/* ─── 右サイドバー（上場準備チェック）─── */
+#right-sidebar {
+  background: var(--bg-sb);
+  border-left: 1px solid #1a1a40;
+  overflow-y: auto;
+  padding: 10px 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #2a2a50 var(--bg-sb);
+}
+#right-sidebar::-webkit-scrollbar { width: 4px; }
+#right-sidebar::-webkit-scrollbar-track { background: var(--bg-sb); }
+#right-sidebar::-webkit-scrollbar-thumb { background: #2a5888; border-radius: 4px; }
+.rsb-title {
+  font-size: 10px; font-weight: 700; color: var(--gold-dk);
+  letter-spacing: 1px; text-align: center;
+  border-bottom: 1px solid #2a5888; padding-bottom: 4px; margin-bottom: 5px;
+}
+
+/* サイドバー要素 */
+.sb-title    { color: var(--gold); font-weight: 700; font-size: 15px; text-align:center; margin-bottom:3px; }
+.sb-title-ja { color: var(--dim);  font-size: 12px;  text-align:center; margin-bottom:12px; }
+.sb-waiting  { color: var(--dim);  font-size: 12px;  text-align:center; font-style:italic; }
+.sb-period   { font-size: 13px; font-weight: 700; margin-bottom: 1px; }
+.sb-co       { font-size: 12px; color: #88bbdd; font-weight: 600; margin-bottom: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb-biz      { font-size: 10px; color: #4477aa; margin-bottom: 4px; }
+/* Q進捗バー行 */
+.sb-q-row    { display: flex; align-items: center; gap: 6px; margin: 2px 0 6px; }
+.sb-q-dots   { font-size: 13px; letter-spacing: 2px; font-weight: 700; flex-shrink: 0; }
+.sb-q-ipo    { font-size: 10px; color: #ffd700; }
+.sb-sec      { font-size: 10px; color: var(--gold-dk); border-top: 1px solid #2a5888; margin: 7px 0 4px; padding-top: 4px; letter-spacing: 1px; }
+.sbr         { display: flex; justify-content: space-between; font-size: 12px; margin: 2px 0; gap: 4px; }
+.sbr span:first-child { color: var(--dim); flex-shrink: 0; }
+.sbr span:last-child  { font-family: 'Courier New', monospace; text-align: right; }
+.srow        { display: flex; align-items: center; gap: 5px; margin: 2px 0; }
+.srow-lbl    { flex: 0 0 72px; font-size: 10px; color: var(--dim); }
+.srow-val    { flex: 0 0 22px; font-size: 11px; font-family: monospace; text-align: right; }
+.mini-bar    { flex: 1; height: 5px; background: #1a4070; border-radius: 3px; overflow: hidden; }
+.mini-fill   { height: 100%; border-radius: 3px; transition: width .4s ease; }
+.ckrow       { font-size: 11px; margin: 1px 0; line-height: 1.3; }
+.ck-pass     { color: var(--green); margin-right: 4px; }
+.ck-fail     { color: var(--red);   margin-right: 4px; }
+.sb-phase    { font-size: 10px; font-weight: 700; margin: 6px 0 2px; padding: 2px 4px; border-radius: 3px; letter-spacing: .5px; }
+.sb-phase-n3 { color: #4499ff; background: rgba(68,153,255,.12); }
+.sb-phase-n2 { color: #00e5ff; background: rgba(0,229,255,.12); }
+.sb-phase-n1 { color: #ffdd00; background: rgba(255,221,0,.12); }
+.sb-phase-n0 { color: #ff4444; background: rgba(255,68,68,.12); }
+.advisor     { font-size: 13px; margin-top: 3px; }
+
+/* ════════════════════════════════════════════
+   ストーリーエリア
+════════════════════════════════════════════ */
+#story {
+  overflow-y: auto;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: #2a5888 var(--bg);
+  background:
+    radial-gradient(ellipse at 0% 0%,   rgba(100,200,255,.10) 0%, transparent 55%),
+    radial-gradient(ellipse at 100% 100%, rgba(160,100,255,.07) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 50%,  rgba(0,120,200,.05)  0%, transparent 70%),
+    var(--bg);
+}
+#story::-webkit-scrollbar { width: 5px; }
+#story::-webkit-scrollbar-track { background: transparent; }
+#story::-webkit-scrollbar-thumb { background: #2a2a50; border-radius: 4px; }
+
+/* アニメーション */
+.story-item { animation: fadeSlide .25s ease; }
+@keyframes fadeSlide {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes ipoZoomIn {
+  from { opacity: 0; transform: scale(.6) translateY(30px); }
+  to   { opacity: 1; transform: scale(1)  translateY(0); }
+}
+
+/* ════════════════════════════════════════════
+   タイトル画面（フルスクリーンオーバーレイ）
+════════════════════════════════════════════ */
+
+/* 全画面を画像で覆う固定レイヤー */
+.title-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background-image: url('/title-img.png');
+  background-size: cover;
+  background-position: center top;
+  background-color: #3a78b8;   /* 画像読込失敗時の空色フォールバック */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;   /* テキスト・ボタンは下寄せ */
+  padding-bottom: 5vh;
+  overflow-y: auto;
+  animation: titleRise .9s cubic-bezier(.2,.9,.3,1);
+}
+
+/* グラデーションオーバーレイは使用しない（画像をそのまま全面表示） */
+
+@keyframes titleRise {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── ハトが飛び立つアニメーション ── */
+.doves-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 1;
+}
+.dove {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+  animation: doveFly ease-in-out infinite;
+  user-select: none;
+  line-height: 1;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,.35));
+}
+.dove-1 { bottom:42%; left:20%; font-size:22px; animation-duration:4.8s; animation-delay:0.0s; }
+.dove-2 { bottom:35%; left:36%; font-size:30px; animation-duration:4.0s; animation-delay:0.9s; }
+.dove-3 { bottom:50%; left:50%; font-size:19px; animation-duration:5.4s; animation-delay:1.8s; }
+.dove-4 { bottom:28%; left:63%; font-size:26px; animation-duration:4.3s; animation-delay:2.7s; }
+.dove-5 { bottom:46%; left:29%; font-size:17px; animation-duration:5.1s; animation-delay:3.5s; }
+.dove-6 { bottom:38%; left:55%; font-size:24px; animation-duration:3.8s; animation-delay:1.4s; }
+@keyframes doveFly {
+  0%   { opacity:0; transform:translate(0,0) rotate(-12deg) scale(.85); }
+  7%   { opacity:1; }
+  72%  { opacity:.9; }
+  90%  { opacity:0; transform:translate(72px,-165px) rotate(14deg) scale(1.08); }
+  100% { opacity:0; transform:translate(0,0) rotate(-12deg) scale(.85); }
+}
+
+/* ── テキスト・ボタンエリア（画像の上に重なるガラスカード） ── */
+.title-content {
+  position: relative;
+  z-index: 2;
+  width: 92%;
+  max-width: 600px;
+  padding: 24px 36px 16px;
+  text-align: center;
+  background: rgba(0, 10, 30, .52);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 16px;
+  border: 1px solid rgba(100, 160, 255, .20);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, .45);
+}
+
+/* タイトルロゴ */
+.title-logo {
+  font-size: 34px;
+  font-weight: 900;
+  background: linear-gradient(180deg, #ffffff 0%, #d8f0ff 40%, #90d0ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 22px rgba(80,160,255,.9))
+          drop-shadow(0 2px 8px rgba(0,0,0,.7));
+  letter-spacing: 7px;
+  margin-bottom: 4px;
+}
+.title-sub-ja {
+  font-size: 19px;
+  font-weight: 700;
+  background: linear-gradient(180deg, #fffbe0 0%, #ffd700 50%, #d4a010 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 16px rgba(255,210,0,.85))
+          drop-shadow(0 2px 5px rgba(0,0,0,.6));
+  letter-spacing: 10px;
+  margin-bottom: 10px;
+}
+.title-tagline {
+  color: #c8e8ff;
+  font-size: 12px;
+  margin-bottom: 10px;
+  letter-spacing: 2px;
+  font-style: italic;
+  text-shadow: 0 1px 4px rgba(0,0,0,.7);
+}
+.title-desc {
+  color: #dceeff;
+  font-size: 13px;
+  line-height: 1.75;
+  margin-bottom: 12px;
+  text-shadow: 0 1px 4px rgba(0,0,0,.65);
+}
+.title-desc strong { color: #ffe88a; }
+.title-desc span   { color: #88d8ff; }
+
+/* タイトル画面 役割バッジ */
+.title-role-badge {
+  display: inline-block;
+  padding: 4px 18px;
+  background: rgba(255,215,0,.18);
+  border: 1px solid rgba(255,200,0,.55);
+  border-radius: 20px;
+  color: #ffe080;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  letter-spacing: 2px;
+  text-shadow: 0 1px 4px rgba(0,0,0,.6);
+}
+
+/* サイドバー 役割バッジ */
+.sb-role-badge {
+  font-size: 11px;
+  color: var(--gold);
+  background: rgba(255,215,0,.1);
+  border: 1px solid rgba(255,215,0,.25);
+  border-radius: 10px;
+  text-align: center;
+  padding: 3px 6px;
+  margin-bottom: 6px;
+}
+
+/* 社長決断プロンプト */
+.decision-prompt {
+  color: var(--yellow);
+  font-weight: 700;
+  font-size: 14px;
+  padding: 8px 14px;
+  background: rgba(255,204,0,.08);
+  border-left: 3px solid var(--yellow);
+  border-radius: 0 4px 4px 0;
+  margin: 2px 0;
+}
+
+/* 社長決断ラベル */
+.ceo-decision {
+  color: var(--cyan);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 4px 0;
+  letter-spacing: .5px;
+}
+
+.title-start-btn {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 14px 44px;
+  background: linear-gradient(135deg, #0050cc, #0080ff);
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 800;
+  font-family: inherit;
+  letter-spacing: 3px;
+  border: 1px solid rgba(100,180,255,.5);
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 24px rgba(0,80,200,.6), 0 0 40px rgba(80,160,255,.25);
+  animation: pulse 1.6s ease-in-out infinite;
+  text-shadow: 0 1px 4px rgba(0,0,0,.4);
+}
+.title-start-btn:active { transform: scale(.97); }
+@keyframes pulse {
+  0%,100% { opacity:1;   box-shadow: 0 4px 24px rgba(0,80,200,.6), 0 0 40px rgba(80,160,255,.25); }
+  50%      { opacity:.82; box-shadow: 0 2px 10px rgba(0,80,200,.3), 0 0 14px rgba(80,160,255,.12); }
+}
+/* 続きから再開ボタン */
+.title-resume-btn {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 10px 32px;
+  background: rgba(10,30,70,.55);
+  color: #b8deff;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  letter-spacing: 2px;
+  border: 1px solid rgba(80,160,255,.5);
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 12px rgba(0,0,0,.4);
+  transition: background .2s, box-shadow .2s;
+  backdrop-filter: blur(6px);
+  text-shadow: 0 1px 3px rgba(0,0,0,.5);
+}
+.title-resume-btn:hover  { background: rgba(10,50,110,.7); box-shadow: 0 4px 20px rgba(0,0,0,.5); }
+.title-resume-btn:active { transform: scale(.97); }
+/* セーブ情報テキスト */
+.title-save-info {
+  color: #a0c8f0;
+  font-size: 12px;
+  margin: 14px 0 4px;
+  letter-spacing: 1px;
+  text-shadow: 0 1px 3px rgba(0,0,0,.6);
+}
+
+/* ─── ルール区切り ─── */
+.story-rule {
+  text-align: center;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 2px;
+  position: relative;
+  padding: 2px 0;
+}
+.story-rule::before, .story-rule::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 28%;
+  height: 1px;
+  opacity: .35;
+}
+.story-rule::before { left: 0; }
+.story-rule::after  { right: 0; }
+.story-rule.cyan   { color: var(--cyan);   } .story-rule.cyan::before,   .story-rule.cyan::after   { background: var(--cyan);   }
+.story-rule.yellow { color: var(--yellow); } .story-rule.yellow::before, .story-rule.yellow::after { background: var(--yellow); }
+.story-rule.red    { color: var(--red);    } .story-rule.red::before,    .story-rule.red::after    { background: var(--red);    }
+.story-rule.blue   { color: #4499ff;       } .story-rule.blue::before,   .story-rule.blue::after   { background: #4499ff;       }
+.story-rule.white  { color: var(--white);  } .story-rule.white::before,  .story-rule.white::after  { background: var(--white);  }
+
+/* ─── パネル ─── */
+.story-panel {
+  background: var(--bg-panel);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.panel-title {
+  padding: 6px 14px;
+  font-weight: 700;
+  font-size: 13px;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+}
+.panel-body { padding: 10px 14px; line-height: 1.75; }
+
+/* パネルカラーバリアント */
+.story-panel.gold       { border: 1px solid var(--gold-dk); }
+.story-panel.gold       .panel-title { background: rgba(184,134,11,.15); color: var(--gold); }
+.story-panel.yellow     { border: 1px solid #997700; }
+.story-panel.yellow     .panel-title { background: rgba(153,119,0,.2);  color: var(--yellow); }
+.story-panel.green      { border: 1px solid #006633; }
+.story-panel.green      .panel-title { background: rgba(0,102,51,.2);   color: var(--green); }
+.story-panel.red        { border: 1px solid #880000; }
+.story-panel.red        .panel-title { background: rgba(136,0,0,.2);    color: var(--red); }
+.story-panel.cyan       { border: 1px solid #005588; }
+.story-panel.cyan       .panel-title { background: rgba(0,85,136,.2);   color: var(--cyan); }
+.story-panel.white      { border: 1px solid #333355; }
+.story-panel.white      .panel-title { background: rgba(51,51,85,.3);   color: var(--white); }
+.story-panel.gold-bright {
+  border: 2px solid var(--gold);
+  box-shadow: 0 0 28px rgba(255,215,0,.3), inset 0 0 40px rgba(255,215,0,.04);
+}
+.story-panel.gold-bright .panel-title {
+  background: rgba(255,215,0,.18);
+  color: var(--gold-br);
+  font-size: 17px;
+  letter-spacing: 2px;
+  text-shadow: 0 0 16px rgba(255,215,0,.6);
+}
+
+/* ─── 業種リスト ─── */
+.biz-list { display: flex; flex-direction: column; gap: 8px; }
+.biz-choice {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 10px 14px;
+  background: var(--bg-panel); border-radius: var(--radius);
+}
+.biz-name  { font-weight: 700; font-size: 14px; margin-bottom: 3px; }
+.biz-desc  { font-size: 12px; color: var(--dim); margin-bottom: 4px; }
+.biz-stats { font-size: 11px; color: #555580; font-family: monospace; }
+
+/* ─── 選択肢 ─── */
+/* 選択肢ラッパー */
+.choices-wrapper { margin-top: 6px; }
+.choices-header {
+  font-size: 11px; color: var(--dim); letter-spacing: .5px;
+  margin-bottom: 7px; padding: 0 2px;
+  opacity: .75;
+}
+.choices-container { display: flex; flex-direction: column; gap: 9px; }
+.choice-item {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 13px 16px;
+  background: linear-gradient(135deg, rgba(22,51,90,.95) 0%, rgba(16,40,74,.95) 100%);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.04);
+  transition: transform .18s ease, box-shadow .18s ease, background .15s, outline .1s;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  outline: 2px solid transparent;
+}
+.choice-item::after {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.08), transparent);
+}
+.choice-item:hover {
+  transform: translateX(4px);
+  box-shadow: 0 4px 18px rgba(0,150,255,.28), inset 0 1px 0 rgba(255,255,255,.1);
+  background: linear-gradient(135deg, rgba(30,70,120,.98) 0%, rgba(22,55,100,.98) 100%);
+  outline: 2px solid rgba(0,180,255,.35);
+}
+/* シングルクリック時に「もう一度クリックで決定」フラッシュ */
+.choice-item.single-click {
+  outline: 2px solid var(--cyan);
+  box-shadow: 0 0 18px rgba(0,229,255,.5);
+}
+.choice-item:active {
+  transform: translateX(2px) scale(.99);
+}
+.choice-letter {
+  flex-shrink: 0;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+  font-weight: 900; font-size: 15px;
+  box-shadow: 0 0 12px rgba(0,0,0,.3);
+}
+.choice-a { border-left: 3px solid var(--cyan);   }  .choice-a .choice-letter { background: rgba(0,229,255,.12); color: var(--cyan);   border: 1px solid var(--cyan);   }
+.choice-b { border-left: 3px solid var(--yellow); }  .choice-b .choice-letter { background: rgba(255,204,0,.12);  color: var(--yellow); border: 1px solid var(--yellow); }
+.choice-c { border-left: 3px solid var(--green);  }  .choice-c .choice-letter { background: rgba(0,221,136,.12);  color: var(--green);  border: 1px solid var(--green);  }
+.choice-d { border-left: 3px solid var(--purple); }  .choice-d .choice-letter { background: rgba(204,68,255,.12); color: var(--purple); border: 1px solid var(--purple); }
+.choice-text  { flex: 1; }
+.choice-title { font-weight: 700; font-size: 13px; margin-bottom: 3px; }
+.choice-desc  { font-size: 12px; color: var(--dim); }
+.choice-hints { margin-top: 5px; display: flex; gap: 14px; flex-wrap: wrap; }
+.choice-hints-hidden { display: none !important; }   /* IPO先生に相談するまで非表示 */
+.hint-profit  { font-size: 12px; color: var(--green); }
+.hint-risk    { font-size: 12px; color: var(--yellow); }
+
+/* ─── 結果パネル ─── */
+.result-panel {
+  display: flex; gap: 12px;
+  padding: 10px 14px; border-radius: var(--radius);
+}
+.result-good { background: rgba(0,80,40,.25);  border: 1px solid #005522; }
+.result-bad  { background: rgba(80,0,0,.25);   border: 1px solid #550000; }
+.result-icon { font-size: 20px; flex-shrink: 0; line-height: 1.4; }
+.result-text { white-space: pre-wrap; font-size: 13px; line-height: 1.7; flex: 1; }
+
+/* ─── 爆弾 ─── */
+.bomb-panel {
+  background: rgba(100,0,0,.3);
+  border: 2px solid var(--red);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  animation: shake .4s ease;
+}
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  20%     { transform: translateX(-5px); }
+  40%     { transform: translateX(5px); }
+  60%     { transform: translateX(-3px); }
+  80%     { transform: translateX(3px); }
+}
+.bomb-title { color: var(--red); font-weight: 700; font-size: 15px; margin-bottom: 8px; }
+.bomb-text  { white-space: pre-wrap; font-size: 13px; color: #ffaaaa; line-height: 1.7; }
+
+/* ─── 審査 ─── */
+.exam-container    { display: flex; flex-direction: column; gap: 10px; }
+.exam-section      { background: var(--bg-panel); border-radius: var(--radius); padding: 10px 14px; }
+.exam-section-title { font-weight: 700; font-size: 13px; margin-bottom: 8px; }
+.exam-section-title.cyan   { color: var(--cyan); }
+.exam-section-title.yellow { color: var(--yellow); }
+.exam-item { padding: 3px 0; font-size: 13px; }
+.exam-item.pass { color: var(--green); }
+.exam-item.fail { color: var(--red); }
+
+/* ─── スコアサマリー ─── */
+.score-summary  { background: var(--bg-panel); border: 1px solid var(--gold-dk); border-radius: var(--radius); padding: 14px; }
+.score-sum-title { color: var(--gold); font-weight: 700; font-size: 15px; text-align: center; margin-bottom: 12px; }
+.score-table    { width: 100%; border-collapse: collapse; }
+.score-table th { color: var(--dim); font-size: 12px; text-align: left; padding: 4px 8px; border-bottom: 1px solid #2a5888; }
+.score-table td { padding: 5px 8px; font-size: 13px; }
+
+/* ─── 四半期業績ブリーフィング ─── */
+.qbr-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+  margin-bottom: 8px;
+}
+.qbr-cell  { display: flex; flex-direction: column; gap: 3px; }
+.qbr-lbl   { font-size: 11px; color: var(--dim); }
+.qbr-val   { font-size: 16px; font-weight: 700; font-family: 'Courier New', monospace; }
+.qbr-section { font-size: 12px; font-weight: 700; color: var(--dim);
+               border-top: 1px solid rgba(255,255,255,.08); margin: 8px 0 5px; padding-top: 6px; }
+.qbr-issue { font-size: 12px; color: var(--yellow); margin: 3px 0; }
+.qbr-good  { font-size: 12px; color: var(--green);  margin: 3px 0; }
+.qbr-sub   { font-size: 11px; color: var(--dim); margin-top: 2px; }
+/* 一時費用セルは赤みがかった背景で強調 */
+.qbr-otc   { background: rgba(255,60,40,.08); border-radius: 4px; padding: 4px 6px; }
+
+/* ─── 財務インパクット表示 ─── */
+.financial-delta {
+  padding: 8px 14px;
+  background: rgba(0,40,80,.5);
+  border: 1px solid rgba(100,200,255,.25);
+  border-left: 3px solid #3388cc;
+  border-radius: var(--radius);
+  font-size: 12px;
+  line-height: 1.9;
+}
+/* ─── 意思決定受理カード（効果は次Q冒頭に報告） ─── */
+.decision-accepted {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 16px;
+  background: rgba(0,100,200,.12);
+  border: 1px solid rgba(0,150,255,.25);
+  border-radius: 6px;
+  margin-top: 6px;
+}
+.da-icon { font-size: 22px; flex-shrink: 0; margin-top: 2px; }
+.da-title { font-weight: 700; font-size: 13px; margin-bottom: 3px; color: var(--cyan); }
+.da-choice { font-size: 12px; color: var(--white); margin-bottom: 4px; }
+.da-note { font-size: 11px; color: var(--dim); font-style: italic; }
+
+/* ─── 反映予約ノート（意思決定直後） ─── */
+.pending-fin-note {
+  padding: 8px 14px;
+  background: linear-gradient(90deg, rgba(40,30,10,.5), rgba(30,25,15,.3));
+  border: 1px dashed rgba(255,170,85,.35);
+  border-radius: var(--radius);
+  font-size: 12px;
+  line-height: 1.7;
+  margin-top: 4px;
+}
+.pfn-label {
+  color: #ffaa55;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 1px;
+  margin-right: 6px;
+}
+.pfn-sub {
+  color: #7a8599;
+  font-size: 10.5px;
+  font-style: italic;
+}
+/* ─── 📊 四半期決算レポート ─── */
+.quarter-closing-report {
+  background: linear-gradient(135deg, rgba(10,25,55,.98), rgba(15,35,70,.99));
+  border: 2px solid var(--gold-dk);
+  border-left: 6px solid var(--gold);
+  border-radius: 10px;
+  padding: 18px 22px;
+  margin: 8px 0;
+  box-shadow: 0 0 30px rgba(255,215,0,.15), inset 0 0 40px rgba(0,0,80,.25);
+  animation: fadeSlide .4s ease;
+}
+.qcr-title {
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--gold-br);
+  letter-spacing: 3px;
+  text-align: center;
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(255,215,0,.3);
+  text-shadow: 0 0 10px rgba(255,215,0,.4);
+}
+.qcr-body { font-size: 12.5px; }
+.qcr-section {
+  margin-bottom: 10px;
+  padding: 6px 8px;
+  background: rgba(0,0,30,.3);
+  border-radius: 4px;
+}
+.qcr-sh {
+  color: var(--cyan);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+.qcr-sb { color: var(--text); line-height: 1.85; }
+.qcr-sb strong { color: var(--gold-br); font-weight: 700; }
+.qcr-runway {
+  text-align: center;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 8px;
+  margin-top: 6px;
+  background: rgba(0,0,0,.3);
+  border-radius: 4px;
+  letter-spacing: 1px;
+}
+.fdelta-label {
+  color: var(--dim);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 1px;
+  display: block;
+  margin-bottom: 4px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  padding-bottom: 4px;
+}
+
+/* ─── CEOモノローグ ─── */
+.ceo-monologue {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  border-left: 4px solid;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.ceo-monologue.ceo-normal  { background: rgba(0,30,60,.4);   border-color: #334466; }
+.ceo-monologue.ceo-warning { background: rgba(80,60,0,.4);   border-color: var(--yellow);
+                              animation: glow-yellow 2s ease-in-out infinite; }
+.ceo-monologue.ceo-crisis  { background: rgba(100,0,0,.4);   border-color: var(--red);
+                              animation: glow-red 1.4s ease-in-out infinite; }
+.ceo-monologue.ceo-tension { background: rgba(40,40,0,.4);   border-color: #887700; }
+.ceo-monologue.ceo-final   { background: rgba(100,20,0,.5);  border-color: var(--red);
+                              border-width: 4px;
+                              box-shadow: 0 0 20px rgba(255,60,40,.3);
+                              animation: glow-red 1s ease-in-out infinite; }
+@keyframes glow-yellow {
+  0%,100% { box-shadow: none; }
+  50%     { box-shadow: 0 0 12px rgba(255,204,0,.3); }
+}
+@keyframes glow-red {
+  0%,100% { box-shadow: none; }
+  50%     { box-shadow: 0 0 16px rgba(255,60,40,.4); }
+}
+.mono-icon { font-size: 20px; flex-shrink: 0; }
+.mono-body { flex: 1; color: var(--white); }
+.mono-line { white-space: pre-wrap; display: block; }
+
+/* ─── テキストユーティリティ ─── */
+.ok-msg        { color: var(--green);  font-size: 13px; padding: 3px 0; }
+.ng-msg        { color: var(--red);    font-size: 13px; padding: 3px 0; }
+.err-msg       { color: var(--red);    font-size: 13px; padding: 3px 0; }
+.dim-text      { color: var(--dim);    font-size: 12px; }
+.hint-text     { color: var(--dim);    font-size: 12px; }
+.gold-text     { color: var(--gold); }
+.selected-label { color: var(--cyan); font-weight: 700; font-size: 13px; padding: 3px 0; }
+.event-question { color: var(--yellow); font-weight: 700; font-size: 14px; padding: 8px 0; }
+
+/* ─── 上場審査 専用ヘッダー ─── */
+.tse-exam-header {
+  background: linear-gradient(135deg, #200000 0%, #550000 50%, #200000 100%);
+  border: 2px solid var(--red);
+  border-radius: 10px;
+  text-align: center;
+  padding: 20px 24px 16px;
+  box-shadow: 0 0 40px rgba(255,60,40,.3), inset 0 0 60px rgba(0,0,0,.4);
+}
+.tse-exam-label {
+  color: rgba(255,100,80,.7);
+  font-size: 11px;
+  letter-spacing: 4px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.tse-exam-title {
+  color: #ffffff;
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 4px;
+  line-height: 1.3;
+  text-shadow: 0 0 20px rgba(255,80,60,.6), 0 2px 0 #000;
+  margin-bottom: 10px;
+}
+.tse-exam-market {
+  display: inline-block;
+  background: rgba(255,60,40,.2);
+  border: 1px solid rgba(255,60,40,.5);
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  padding: 4px 18px;
+  border-radius: 20px;
+  margin-bottom: 6px;
+}
+.tse-exam-company {
+  color: var(--dim);
+  font-size: 12px;
+  letter-spacing: 1px;
+  margin-top: 4px;
+}
+
+/* ════════════════════════════════════════════
+   🎰 四半期スロット（インライン・ターン終了時）
+════════════════════════════════════════════ */
+.quarterly-slot {
+  background: linear-gradient(160deg, #0a1a3a 0%, #0d1f45 100%);
+  border: 2px solid var(--gold);
+  border-radius: 12px;
+  padding: 20px 24px;
+  text-align: center;
+  box-shadow: 0 0 30px rgba(255,215,0,.15);
+}
+.qs-title {
+  color: var(--gold);
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  margin-bottom: 16px;
+  text-shadow: 0 0 12px rgba(255,215,0,.4);
+}
+.qs-reels {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+.qs-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.qs-reel {
+  width: 68px; height: 68px;
+  background: rgba(0,0,0,.55);
+  border: 2px solid rgba(255,215,0,.3);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 34px;
+  transition: border-color .3s, box-shadow .3s;
+}
+.qs-reel.stopped {
+  border-color: var(--gold);
+  box-shadow: 0 0 14px rgba(255,215,0,.35);
+}
+.qs-rlbl { font-size: 11px; color: var(--dim); letter-spacing: 1px; }
+.qs-sep  { color: var(--gold-dk); font-size: 20px; font-weight: 700; margin-top: 24px; }
+.qs-extra { margin-top: 12px; display: none; animation: fadeSlide .35s ease; }
+.qs-labels {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 8px;
+}
+.qs-lbl-item {
+  width: 96px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--white);
+  text-align: center;
+}
+.qs-verdict {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 8px 18px;
+  border-radius: 6px;
+  display: inline-block;
+  margin-top: 4px;
+}
+.qs-verdict-good { color: var(--green);  background: rgba(0,80,40,.35);  border: 1px solid #005522; }
+.qs-verdict-bad  { color: var(--red);    background: rgba(80,0,0,.35);   border: 1px solid #550000;
+                   animation: glow-red 1.2s ease-in-out infinite; }
+.qs-verdict-mid  { color: var(--yellow); background: rgba(80,60,0,.35);  border: 1px solid #554400; }
+
+/* 突発イベントリール停止時の強調 */
+.qs-reel.fortune-bad  { border-color: var(--red) !important;    box-shadow: 0 0 20px rgba(255,60,40,.6) !important; }
+.qs-reel.fortune-good { border-color: var(--green) !important;  box-shadow: 0 0 20px rgba(0,221,136,.6) !important; }
+.qs-reel.fortune-mid  { border-color: var(--yellow) !important; box-shadow: 0 0 20px rgba(255,204,0,.5) !important; }
+
+/* ════════════════════════════════════════════
+   🎰 スロットマシーン（決断ルーレット）オーバーレイ ※旧・非使用
+════════════════════════════════════════════ */
+#slot-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,30,.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: slotFadeIn .15s ease;
+}
+#slot-overlay.slot-fade-out {
+  animation: slotFadeOut .35s ease forwards;
+}
+@keyframes slotFadeIn  { from { opacity:0; } to { opacity:1; } }
+@keyframes slotFadeOut { from { opacity:1; } to { opacity:0; } }
+
+.slot-box {
+  background: linear-gradient(160deg, #0a2a5a 0%, #0f1e40 100%);
+  border: 2px solid var(--gold);
+  border-radius: 16px;
+  padding: 32px 40px;
+  text-align: center;
+  box-shadow: 0 0 60px rgba(255,215,0,.25), 0 0 120px rgba(0,150,255,.15);
+  min-width: 340px;
+}
+.slot-title {
+  color: var(--gold);
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  margin-bottom: 28px;
+  text-shadow: 0 0 20px rgba(255,215,0,.6);
+}
+.slot-reels {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.slot-reel {
+  width: 72px; height: 72px;
+  background: rgba(0,0,0,.5);
+  border: 2px solid rgba(255,215,0,.4);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 36px;
+  box-shadow: inset 0 0 20px rgba(0,0,0,.5);
+  transition: none;
+}
+.slot-sep { color: var(--gold-dk); font-size: 20px; font-weight: 700; }
+.slot-sub {
+  color: var(--dim);
+  font-size: 12px;
+  letter-spacing: 1px;
+  margin-top: 8px;
+}
+.slot-result-line {
+  margin-top: 14px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  opacity: 0;
+  transition: opacity .3s ease;
+}
+.slot-result-line.show { opacity: 1; }
+.slot-result-line.good { color: var(--green); }
+.slot-result-line.bad  { color: var(--red); }
+
+/* ════════════════════════════════════════════
+   ② IPO先生 固定表示（サイドバー下部 sticky）
+════════════════════════════════════════════ */
+.advisor-sticky {
+  position: sticky;
+  bottom: 0;
+  background: var(--bg-sb);
+  border-top: 1px solid #2a5888;
+  padding: 5px 0 3px;
+  margin-top: 8px;
+}
+.advisor-sticky .sb-sec {
+  border-top: none;
+  margin-top: 0;
+}
+
+/* ════════════════════════════════════════════
+   ③ 選択フェーズ：入力欄を非表示にする
+════════════════════════════════════════════ */
+#app.selection-mode {
+  grid-template-rows: 48px 1fr auto;
+}
+#app.selection-mode #input-area {
+  display: none;
+}
+
+/* ════════════════════════════════════════════
+   ボタンバー（スマホ・タッチ対応）
+════════════════════════════════════════════ */
+#btn-bar {
+  background: var(--bg-sb);
+  border-top: 1px solid #2a5888;
+  padding: 8px 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-height: 0;
+}
+#btn-bar:empty { display: none; padding: 0; border: none; }
+
+.btn-action {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: inherit;
+  font-weight: 700;
+  letter-spacing: .4px;
+  transition: opacity .15s, transform .1s, box-shadow .2s, filter .2s;
+  flex-shrink: 0;
+}
+.btn-action:hover  { filter: brightness(1.12); transform: translateY(-1px); }
+.btn-action:active { transform: scale(.95); opacity: .85; }
+
+.btn-primary  {
+  background: linear-gradient(135deg, #4ff3ff 0%, var(--cyan) 60%, #00a8c7 100%);
+  color: #001420; border-color: var(--cyan);
+  box-shadow: 0 0 16px rgba(0,229,255,.45), inset 0 1px 0 rgba(255,255,255,.3);
+}
+.btn-continue {
+  background: linear-gradient(135deg, #ffe866 0%, var(--gold) 60%, #b8860b 100%);
+  color: #1a0f00; border-color: var(--gold);
+  box-shadow: 0 0 16px rgba(255,215,0,.45), inset 0 1px 0 rgba(255,255,255,.3);
+}
+.btn-a { background: rgba(0,229,255,.15); color: var(--cyan);   border-color: var(--cyan);   }
+.btn-b { background: rgba(255,204,0,.15); color: var(--yellow); border-color: var(--yellow); }
+.btn-c { background: rgba(0,221,136,.15); color: var(--green);  border-color: var(--green);  }
+.btn-d { background: rgba(204,68,255,.15);color: var(--purple); border-color: var(--purple); }
+.btn-advisor {
+  background: rgba(255,215,0,.07);
+  color: var(--gold);
+  border-color: rgba(255,215,0,.35);
+  font-size: 12px;
+  padding: 7px 14px;
+}
+.btn-advisor:hover { background: rgba(255,215,0,.15); }
+
+/* 💾 セーブボタン */
+.btn-save {
+  background: rgba(0,100,60,.15);
+  color: #44dd99;
+  border-color: rgba(0,200,120,.35);
+  font-size: 12px;
+  padding: 7px 14px;
+  margin-left: auto;   /* 右端に寄せる */
+}
+.btn-save:hover { background: rgba(0,180,100,.2); }
+
+/* セーブ完了トースト */
+.save-toast {
+  background: linear-gradient(135deg, rgba(0,60,30,.95) 0%, rgba(0,40,20,.97) 100%);
+  border: 1px solid #00cc66;
+  border-left: 4px solid #00dd88;
+  border-radius: 6px;
+  padding: 10px 16px;
+  color: #88ffcc;
+  font-size: 13px;
+  animation: fadeSlide .2s ease;
+}
+.save-toast-fail {
+  border-color: var(--red);
+  border-left-color: var(--red);
+  color: #ffaaaa;
+  background: rgba(60,0,0,.9);
+}
+
+/* ════════════════════════════════════════════
+   💡 IPO先生アドバイザーパネル
+════════════════════════════════════════════ */
+.advisor-chat {
+  background: linear-gradient(135deg, rgba(8,25,55,.9) 0%, rgba(12,22,48,.95) 100%);
+  border: 1px solid var(--gold-dk);
+  border-left: 4px solid var(--gold);
+  border-radius: 8px;
+  padding: 14px 16px;
+  animation: fadeSlide .2s ease;
+}
+.adv-header {
+  color: var(--gold);
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 10px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid rgba(255,215,0,.2);
+}
+.adv-context {
+  color: var(--white);
+  font-size: 12px;
+  line-height: 1.75;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  background: rgba(255,215,0,.05);
+  border-radius: 4px;
+}
+.adv-ipo-tip {
+  font-size: 12px;
+  color: var(--cyan);
+  padding: 6px 10px;
+  background: rgba(0,229,255,.06);
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+.adv-warning {
+  font-size: 12px;
+  color: var(--red);
+  font-weight: 700;
+  padding: 6px 10px;
+  background: rgba(255,60,40,.1);
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+.adv-opts-title {
+  color: var(--dim);
+  font-size: 11px;
+  margin: 8px 0 6px;
+  letter-spacing: 1px;
+}
+.adv-opts { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+.adv-opt {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  padding: 6px 8px;
+  background: rgba(255,255,255,.03);
+  border-radius: 4px;
+}
+.adv-ltr {
+  flex-shrink: 0;
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 4px;
+  font-weight: 900; font-size: 12px;
+}
+.adv-ltr-a { background: rgba(0,229,255,.12); color: var(--cyan);   border: 1px solid var(--cyan);   }
+.adv-ltr-b { background: rgba(255,204,0,.12);  color: var(--yellow); border: 1px solid var(--yellow); }
+.adv-ltr-c { background: rgba(0,221,136,.12);  color: var(--green);  border: 1px solid var(--green);  }
+.adv-ltr-d { background: rgba(204,68,255,.12); color: var(--purple); border: 1px solid var(--purple); }
+.adv-opt-body { flex: 1; }
+.adv-opt-desc { font-size: 12px; color: var(--text); line-height: 1.5; }
+.adv-footer {
+  text-align: center;
+  color: var(--dim);
+  font-size: 11px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+
+/* サイドバー状態モニター（コンパクト版） */
+.sb-mood { font-size: 12px; margin-top: 8px; padding: 4px 0; }
+
+/* ════════════════════════════════════════════
+   インプットエリア
+════════════════════════════════════════════ */
+#input-area {
+  background: var(--bg-sb);
+  border-top: 2px solid #3399dd;
+  display: flex;
+  align-items: center;
+  padding: 0 18px;
+  gap: 10px;
+}
+#prompt-icon {
+  color: var(--gold);
+  font-size: 20px;
+  font-weight: 700;
+  flex-shrink: 0;
+  text-shadow: 0 0 10px rgba(255,215,0,.5);
+}
+#game-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--gold);
+  font-size: 15px;
+  font-family: inherit;
+  caret-color: var(--gold);
+  letter-spacing: 1px;
+}
+#game-input::placeholder { color: #4a7799; }
+#input-key-hint { color: #4a7799; font-size: 11px; flex-shrink: 0; }
+/* ════════════════════════════════════════════
+   🤖 AIナラティブパネル（ターン開始）
+════════════════════════════════════════════ */
+.ai-narrative {
+  background: linear-gradient(135deg, rgba(0,8,30,.98) 0%, rgba(5,18,50,.99) 100%);
+  border: 1px solid rgba(0,229,255,.25);
+  border-left: 5px solid var(--cyan);
+  border-radius: 8px;
+  padding: 18px 22px;
+  animation: fadeSlide .4s ease;
+  box-shadow: 0 0 24px rgba(0,229,255,.08), inset 0 0 40px rgba(0,0,80,.3);
+}
+.ain-header {
+  font-size: 10px;
+  color: var(--cyan);
+  letter-spacing: 4px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  opacity: .8;
+}
+.ain-body {
+  font-style: italic;
+  color: #cce8ff;
+  font-size: 14px;
+  line-height: 2.1;
+}
+/* ════════════════════════════════════════════
+   📖 AI 選択後ドラマパネル
+════════════════════════════════════════════ */
+.ai-drama {
+  background: linear-gradient(135deg, rgba(10,5,30,.97) 0%, rgba(20,8,40,.99) 100%);
+  border: 1px solid rgba(180,100,255,.2);
+  border-left: 5px solid #cc44ff;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-top: 6px;
+  animation: fadeSlide .4s ease;
+  box-shadow: 0 0 20px rgba(150,50,255,.08);
+}
+.aid-header {
+  font-size: 10px;
+  color: #cc44ff;
+  letter-spacing: 3px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+.aid-body {
+  font-style: italic;
+  font-size: 13.5px;
+  line-height: 2.0;
+}
+
+/* ════════════════════════════════════════════
+   ① タイトル画面 Canvas アニメーション（旧sunrise-canvas削除済み）
+════════════════════════════════════════════ */
+.title-canvas-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* ════════════════════════════════════════════
+   ② BGM サウンドボタン（右下固定）
+════════════════════════════════════════════ */
+#sound-btn {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 9999;
+  background: rgba(0,30,60,.85);
+  border: 1px solid rgba(0,229,255,.4);
+  border-radius: 20px;
+  color: #00e5ff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 14px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: background .15s, border-color .15s;
+  display: none;
+}
+#sound-btn:hover { background: rgba(0,60,100,.9); border-color: rgba(0,229,255,.8); }
+#sound-btn.muted { color: #7aaccc; border-color: rgba(122,172,204,.4); }
+
+/* ─── 監査契約ルーレットアニメーション ─── */
+.roulette-wrap {
+  text-align: center;
+  padding: 20px 16px 16px;
+  background: linear-gradient(160deg, rgba(0,20,50,.7) 0%, rgba(10,40,80,.8) 100%);
+  border: 1px solid rgba(255,215,0,.35);
+  border-radius: 10px;
+  margin: 8px 0;
+}
+/* ── ルーレットヘッダー・凡例 ── */
+.roulette-header {
+  font-size: 12px; color: var(--gold); letter-spacing: 2px; margin-bottom: 6px;
+}
+.roulette-legend {
+  font-size: 12px; margin-bottom: 10px; display: flex; justify-content: center; gap: 8px;
+}
+.rl-green { color: var(--green); font-weight: 700; }
+.rl-red   { color: var(--red);   font-weight: 700; }
+.rl-sep   { color: var(--dim); }
+/* ── 回転ディスク ── */
+.roulette-disk-wrap {
+  position: relative;
+  width: 130px;
+  height: 130px;
+  margin: 0 auto 14px;
+}
+.roulette-disk {
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  border: 3px solid rgba(255,215,0,.7);
+  box-shadow: 0 0 30px rgba(255,215,0,.4), inset 0 0 12px rgba(0,0,0,.4);
+}
+/* ── 固定ポインター（上部中央） ── */
+.roulette-pointer {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left:  10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top:   20px solid #ffffff;
+  filter: drop-shadow(0 0 6px rgba(255,255,255,.9));
+  z-index: 2;
+}
+/* ── 中心ドット ── */
+.roulette-center {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 40%, #aaa 100%);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 10px rgba(255,255,255,.8);
+  z-index: 2;
+}
+/* ── 「回転中」ラベル ── */
+.roulette-spin-label {
+  color: var(--cyan);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+}
+.roulette-dots {
+  display: inline-block;
+  animation: rouletteDots 1s steps(3, end) infinite;
+}
+@keyframes rouletteDots {
+  0%  { content: '.';   }
+  33% { content: '..';  }
+  66% { content: '...'; }
+}
+/* ── 結果パネル（回転後にフェードイン） ── */
+.roulette-result {
+  opacity: 0; transform: translateY(8px);
+  border-radius: 7px;
+  padding: 12px 14px;
+  text-align: left;
+}
+.roulette-result.green {
+  background: rgba(0,200,100,.1);
+  border: 1px solid var(--green);
+}
+.roulette-result.red {
+  background: rgba(255,80,80,.1);
+  border: 1px solid var(--red);
+}
+.roulette-result-title {
+  font-size: 15px;
+  font-weight: 800;
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+.roulette-result.green .roulette-result-title { color: var(--green); }
+.roulette-result.red   .roulette-result-title { color: var(--red);   }
+.roulette-result-body {
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--white);
+}
+
+/* ════════════════════════════════════════════
+   スマホ・タブレット対応（768px以下）
+════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* ヘッダー：ロゴ非表示・パディング最小化 */
+  #hdr {
+    padding: 0 52px 0 8px;
+  }
+  #hdr-logo-link { display: none; }
+  #hdr-title { font-size: 13px; letter-spacing: 1px; }
+  #hdr-deco  { font-size: 11px; }
+
+  /* メインレイアウト：サイドバーを非表示にしてストーリーのみ表示 */
+  #main {
+    grid-template-columns: 1fr;
+  }
+  #sidebar       { display: none; }
+  #right-sidebar { display: none; }
+
+  /* ストーリーパネル：横スクロール抑止 */
+  #story {
+    overflow-x: hidden;
+  }
+
+  /* 選択肢カード：横幅100% */
+  .choice-item { min-width: unset; }
+
+  /* ボタンバー：縦並び */
+  #btn-bar {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 6px;
+  }
+  #btn-bar button { flex: 1 1 45%; font-size: 12px; }
+
+  /* タイトル画面：文字サイズ調整 */
+  .title-main-title { font-size: 26px !important; }
+  .title-sub        { font-size: 13px !important; }
+  .title-start-btn, .title-resume-btn { font-size: 14px !important; padding: 10px 20px !important; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ヘッダー -->
+  <div id="hdr">
+    <a id="hdr-logo-link" href="https://ipo-kentei.or.jp/" target="_blank" rel="noopener" title="IPO実務検定 公式サイト">
+      <img id="hdr-logo-img" src="/logo.png" alt="IPO実務検定" onerror="this.style.display='none'">
+    </a>
+    <span id="hdr-deco">◆◆◆</span>
+    <span id="hdr-title">THE IPO PATH : 栄光への決断</span>
+    <span id="hdr-deco">◆◆◆</span>
+    <button id="hdr-save-btn" onclick="hdrSave()" title="ゲームを保存"><div style="font-size:9px;line-height:1;margin-bottom:1px">保存</div><div>💾</div></button>
+  </div>
+
+  <!-- メインエリア -->
+  <div id="main">
+    <div id="sidebar"></div>
+    <div id="story"></div>
+    <div id="right-sidebar"></div>
+  </div>
+
+  <!-- インプット -->
+  <div id="input-area">
+    <span id="prompt-icon">►</span>
+    <input type="text" id="game-input"
+           autocomplete="off" autocorrect="off"
+           autocapitalize="off" spellcheck="false">
+    <span id="input-key-hint">Enter で送信</span>
+  </div>
+
+  <!-- ボタンバー -->
+  <div id="btn-bar"></div>
+
+</div>
+
+<!-- ② BGM サウンド ON/OFF ボタン（右下固定） -->
+<button id="sound-btn" onclick="toggleSound()">🔊 SOUND OFF</button>
+
+<script>
+(function () {
+  'use strict';
+
+  let sid = '';
+  const storyEl  = document.getElementById('story');
+  const sideEl      = document.getElementById('sidebar');
+  const rightSideEl = document.getElementById('right-sidebar');
+  const inputEl  = document.getElementById('game-input');
+  const btnBarEl = document.getElementById('btn-bar');
+
+  /* ── POST /action ── */
+  async function post(value, extra) {
+    try {
+      const body = Object.assign({ sid, value }, extra || {});
+      const res = await fetch('/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      return await res.json();
+    } catch (e) {
+      return { error: e.message };
+    }
+  }
+
+  /* ──────────────────────────────────────────
+     🎰 四半期スロット（インライン演出）
+     サーバーが data-r1/r2/r3 / data-l1/l2/l3 / data-verdict / data-vcls を埋め込む
+  ────────────────────────────────────────── */
+  const QS_SYMBOLS = ['💹','📋','⚖️','🎯','⚡','💰','📊','🏢','🔑','📈','💼','🏛️','📣','🌟','💡','🔐','📑'];
+
+  function activateQuarterlySlot(container) {
+    const qs = container.querySelector('.quarterly-slot');
+    if (!qs) return;
+
+    const r1val   = qs.dataset.r1;
+    const r2val   = qs.dataset.r2;
+    const r3val   = qs.dataset.r3;
+    const l1val   = qs.dataset.l1;
+    const l2val   = qs.dataset.l2;
+    const l3val   = qs.dataset.l3;
+    const verdict = qs.dataset.verdict;
+    const vcls    = qs.dataset.vcls;
+
+    const reels = qs.querySelectorAll('.qs-reel');
+    if (reels.length < 3) return;
+    const r1el = reels[0], r2el = reels[1], r3el = reels[2];
+
+    // ── 効果音：回転開始 → BGMフェードダウン + チクタク音
+    if (window._slotSfx) window._slotSfx.spinStart();
+
+    let spinning = true;
+    const rnd = () => QS_SYMBOLS[Math.floor(Math.random() * QS_SYMBOLS.length)];
+    const spinInterval = setInterval(function () {
+      if (!spinning) return;
+      r1el.textContent = rnd();
+      r2el.textContent = rnd();
+      r3el.textContent = rnd();
+    }, 80);
+
+    // リール1 停止（1.4秒後）
+    setTimeout(function () {
+      r1el.textContent = r1val;
+      r1el.classList.add('stopped');
+      if (window._slotSfx) window._slotSfx.reelStop(false);
+    }, 1400);
+
+    // リール2 停止（1.9秒後）
+    setTimeout(function () {
+      r2el.textContent = r2val;
+      r2el.classList.add('stopped');
+      if (window._slotSfx) window._slotSfx.reelStop(false);
+    }, 1900);
+
+    // リール3 停止 → 突発イベントの種別に応じた演出 → ラベル + 総評（2.4秒後）
+    setTimeout(function () {
+      r3el.textContent = r3val;
+      r3el.classList.add('stopped');
+      spinning = false;
+      clearInterval(spinInterval);
+      if (window._slotSfx) window._slotSfx.reelStop(true);
+
+      // 突発イベントの正負でリール枠色を変える
+      const badFortunes  = ['⚔️','🦠','💣','🌊','📉','⚡'];
+      const goodFortunes = ['📈'];
+      let fortuneType = 'mid';
+      // vcls \u304C\u660E\u793A\u7684\u306B bad/good \u3092\u793A\u3059\u5834\u5408\u306F\u512A\u5148
+      if (vcls && vcls.includes('bad'))       fortuneType = 'bad';
+      else if (vcls && vcls.includes('good'))  fortuneType = 'good';
+      else if (badFortunes.some(s => r3val.includes(s.replace(/\uFE0F/g,'')))) fortuneType = 'bad';
+      else if (goodFortunes.includes(r3val))   fortuneType = 'good';
+
+      r3el.classList.add('fortune-' + fortuneType);
+
+      // \u7D50\u679C\u30B5\u30A6\u30F3\u30C9\uFF08200ms\u5F8C\u306B\u518D\u751F\uFF09
+      setTimeout(function() {
+        if (window._slotSfx) {
+          if      (fortuneType === 'good') window._slotSfx.fanfare();
+          else if (fortuneType === 'bad')  window._slotSfx.doom();
+          else                              window._slotSfx.calm();
+        }
+      }, 200);
+
+      const extra    = qs.querySelector('.qs-extra');
+      const lblItems = qs.querySelectorAll('.qs-lbl-item');
+      if (lblItems[0]) lblItems[0].textContent = l1val;
+      if (lblItems[1]) lblItems[1].textContent = l2val;
+      if (lblItems[2]) lblItems[2].textContent = l3val;
+      const verdictEl = qs.querySelector('.qs-verdict');
+      if (verdictEl) {
+        verdictEl.textContent = verdict;
+        verdictEl.className   = 'qs-verdict ' + (vcls || '');
+      }
+      if (extra) extra.style.display = 'block';
+    }, 2400);
+  }
+
+  /* ── 二重送信防止フラグ ── */
+  var _actionInProgress = false;
+  /* IPO先生：現在のイベントでアドバイスを表示済みか */
+  var _advisorShownForCurrentEvent = false;
+
+  /* ── グローバルアクション（タイトルボタン・ボタンバーから呼ばれる）── */
+  window.gameAction = async function (value) {
+    /* ユーザー操作のタイミングでBGMを確実に開始（Autoplay Policy対応） */
+    if (window._bgmCtrl) window._bgmCtrl.tryStart();
+    if (value === '__ADVISOR__') {
+      /* IPO先生ボタン：同一イベントで1度だけ表示 */
+      if (_advisorShownForCurrentEvent) return;
+      _advisorShownForCurrentEvent = true;
+    } else {
+      if (_actionInProgress) return;
+      _actionInProgress = true;
+      /* 全選択肢カードを即座に無効化（二重ダブルクリック防止） */
+      document.querySelectorAll('.choice-item').forEach(function(el) {
+        el.style.pointerEvents = 'none';
+        el.style.opacity = '0.55';
+      });
+    }
+    if (value === '__INPUT__') {
+      value = inputEl.value.trim();
+      inputEl.value = '';
+    }
+    /* 保存以外のアクションは「未保存状態」にする */
+    if (value !== '__SAVE__' && value !== '__ADVISOR__' && value !== '') {
+      _savedClean = false;
+    }
+    /* 新規ゲーム開始時はlocalStorageのセーブを削除 */
+    if (value === '__START__') {
+      try { localStorage.removeItem('ipo_save'); } catch(_) {}
+    }
+    /* __RESUME__時はlocalStorageのセーブデータをサーバーに送信 */
+    var _postExtra = {};
+    if (value === '__RESUME__') {
+      try {
+        var _lsVal = localStorage.getItem('ipo_save') || '';
+        if (_lsVal) _postExtra.save_b64 = _lsVal;
+      } catch(_) {}
+    }
+    try {
+      const data = await post(value, _postExtra);
+      /* 保存成功フラグを受け取ったらクリーン状態にする + localStorageに書き込む */
+      if (data.saved_ok === true) {
+        _savedClean = true;
+        if (data.save_b64) {
+          try { localStorage.setItem('ipo_save', data.save_b64); } catch(_) {}
+        }
+      }
+      render(data);
+    } finally {
+      if (value !== '__ADVISOR__') {
+        _actionInProgress = false;
+        /* カードの無効化は次の render() で新しいコンテンツに置き換わるため
+           明示的に元に戻す必要はない */
+      }
+    }
+  };
+
+
+  /* 選択肢カードのダブルクリックで呼ばれるエイリアス */
+  window.submitAction = function (value) {
+    window.gameAction(value);
+  };
+
+  /* シングルクリック時に「もう一度クリックで決定」フィードバック */
+  document.addEventListener('click', function (e) {
+    var card = e.target.closest('.choice-item');
+    if (!card) return;
+    if (card.style.pointerEvents === 'none') return;  /* 無効化済みならスキップ */
+    document.querySelectorAll('.choice-item.single-click').forEach(function(el) {
+      el.classList.remove('single-click');
+    });
+    card.classList.add('single-click');
+    setTimeout(function() { card.classList.remove('single-click'); }, 800);
+  });
+
+  /* ── ボタンバー描画 ── */
+  function renderButtons(buttons) {
+    btnBarEl.innerHTML = '';
+    const hasButtons  = buttons && buttons.length > 0;
+    const isTextInput = hasButtons && buttons.some(b => b.value === '__INPUT__');
+    const selOnly     = hasButtons && !isTextInput;
+
+    /* ③ 選択フェーズ：テキスト入力欄を非表示 */
+    document.getElementById('app').classList.toggle('selection-mode', selOnly);
+
+    if (!hasButtons) return;
+    for (const btn of buttons) {
+      const el = document.createElement('button');
+      el.className = 'btn-action btn-' + btn.style;
+      el.textContent = btn.label;
+      el.addEventListener('click', function () {
+        /* 二重送信防止：IPO先生ボタン以外はクリック後に全ボタンを無効化 */
+        if (btn.value !== '__ADVISOR__') {
+          btnBarEl.querySelectorAll('button').forEach(function(b) {
+            b.disabled = true;
+            b.style.opacity = '0.5';
+          });
+        }
+        // ターンボタン（continue）押下時にBGMを再開
+        if (btn.style === 'continue' && window._slotSfx) {
+          window._slotSfx.resumeBGM();
+        }
+        window.gameAction(btn.value);
+      });
+      btnBarEl.appendChild(el);
+    }
+  }
+
+  /* ── レンダリング ── */
+  function render(data) {
+    if (data.error) {
+      appendStory('<div class="err-msg">通信エラー: ' + data.error + '</div>');
+      return;
+    }
+
+    sid = data.sid;
+
+    if (data.clear) {
+      storyEl.innerHTML = '';
+    }
+
+    if (data.story_items && data.story_items.length > 0) {
+      /* タイトル画面(position:fixed overlay)が残っていて、
+         新コンテンツがタイトル以外なら即削除（画面遷移） */
+      var hasTitle = data.story_items.some(function(i){ return i.type === 'title'; });
+      if (!hasTitle) {
+        var oldTitle = storyEl.querySelector('.title-screen');
+        if (oldTitle) oldTitle.remove();
+      }
+
+      let firstNew = null;
+      for (const item of data.story_items) {
+        const el = appendStory(item.html, item.type);
+        if (!firstNew) firstNew = el;
+      }
+      /* 新しいコンテンツの「先頭」が見えるようにスクロール（大量バッチでも確実） */
+      scrollToFirst(firstNew);
+    }
+
+    sideEl.innerHTML = data.sidebar || '';
+    if (rightSideEl) rightSideEl.innerHTML = data.right_sidebar || '';
+    inputEl.placeholder = data.placeholder || '';
+    renderButtons(data.buttons || []);
+
+    /* 名前入力フェーズのみ入力欄にフォーカス、それ以外はボタン優先 */
+    if (data.buttons && data.buttons.length > 0 &&
+        data.buttons[0].value !== '__INPUT__') {
+      btnBarEl.firstElementChild && btnBarEl.firstElementChild.focus();
+    } else {
+      inputEl.focus();
+    }
+  }
+
+  function appendStory(html, itemType) {
+    /* 特殊シグナル：選択肢カード上の💰/⚠ヒントを表示 */
+    if (itemType === 'reveal_hints') {
+      document.querySelectorAll('.choice-hints-hidden').forEach(function (el) {
+        el.classList.remove('choice-hints-hidden');
+      });
+      return null;
+    }
+    /* 特殊シグナル：前イベントのIPO先生パネルを削除し、表示済みフラグをリセット */
+    if (itemType === 'clear_advisor') {
+      document.querySelectorAll('.advisor-chat').forEach(function (el) {
+        var wrapper = el.closest('.story-item');
+        if (wrapper) wrapper.remove(); else el.remove();
+      });
+      /* 前イベントで reveal_hints されたヒントを再び非表示にする（新イベントは隠れた状態から始まる） */
+      document.querySelectorAll('.choice-hints').forEach(function (el) {
+        el.classList.add('choice-hints-hidden');
+      });
+      _advisorShownForCurrentEvent = false;
+      return null;
+    }
+    const div = document.createElement('div');
+    div.className = 'story-item';
+    div.innerHTML = html;
+    storyEl.appendChild(div);
+    /* タイトル画面：localStorageにセーブデータがあれば再開ボタンをクライアント側で注入
+       （サーバー側ファイルが存在しない環境＝クラウドデプロイ時に対応） */
+    if (itemType === 'title') {
+      try {
+        var _lsSave = localStorage.getItem('ipo_save') || '';
+        if (_lsSave) {
+          var _titleCard = div.querySelector('.title-card');
+          if (_titleCard && !_titleCard.querySelector('.title-resume-btn')) {
+            var _resumeWrap = document.createElement('div');
+            _resumeWrap.innerHTML =
+              '<div class="title-save-info">📂 セーブデータあり（ブラウザ保存）</div>' +
+              '<button class="title-resume-btn" onclick="window.gameAction(\'__RESUME__\')">📂 前回の続きから再開</button><br>';
+            var _startBtn = _titleCard.querySelector('.title-start-btn');
+            while (_resumeWrap.firstChild) {
+              _titleCard.insertBefore(_resumeWrap.firstChild, _startBtn || null);
+            }
+          }
+        }
+      } catch(_) {}
+    }
+    /* ─ ルーレットアニメーション（JS requestAnimationFrame版） */
+    var rDisk = div.querySelector('.roulette-disk');
+    if (rDisk) { animateRoulette(rDisk); }
+    /* 四半期スロットならアニメーション起動（少し遅延してDOMが確定してから）*/
+    if (itemType === 'quarterly_slot') {
+      setTimeout(function () { activateQuarterlySlot(div); }, 60);
+    }
+    /* 🎆 上場成功：花火 + G1ファンファーレ */
+    if (itemType === 'ipo_fireworks') {
+      setTimeout(launchIpoFireworks, 400);
+      if (window._slotSfx) setTimeout(function() { window._slotSfx.ipoFanfare(); }, 700);
+    }
+    /* 上場失敗：這い上がるサウンド */
+    if (itemType === 'ipo_failure_sound') {
+      if (window._slotSfx) setTimeout(function() { window._slotSfx.ipoFailure(); }, 300);
+    }
+    return div;
+  }
+
+  /* ══════════════════════════════════════════
+     🎲 監査契約ルーレット アニメーション
+  ══════════════════════════════════════════ */
+  function animateRoulette(diskEl) {
+    /* IntersectionObserver で要素が画面内に入ってからアニメーション開始 */
+    if ('IntersectionObserver' in window) {
+      var obs = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            obs.disconnect();
+            _startRouletteAnim(diskEl);
+          }
+        });
+      }, { threshold: 0.3 });
+      obs.observe(diskEl);
+    } else {
+      _startRouletteAnim(diskEl);   /* fallback: 即時起動 */
+    }
+  }
+
+  function _startRouletteAnim(diskEl) {
+    var prob    = parseFloat(diskEl.dataset.prob    || '0.5');
+    var success = diskEl.dataset.success === '1';
+    var duration = 4200;
+    var greenDeg = prob * 360;
+    var redDeg   = 360 - greenDeg;
+    /* ポインターが止まる角度（ディスク中心から見た、成功/失敗セグメントの中心） */
+    var landingOnDisk = success ? greenDeg / 2 : greenDeg + redDeg / 2;
+    /* ディスクをlandingOnDiskだけ回すと、ポインター（上部12時位置）がそのセグメント中心を指す */
+    var totalSpin = 6 * 360 + (360 - landingOnDisk);
+    var startTs = null;
+    function easeOut(t) { return 1 - Math.pow(1 - t, 4); }
+    function frame(ts) {
+      if (!startTs) startTs = ts;
+      var elapsed  = ts - startTs;
+      var progress = Math.min(elapsed / duration, 1);
+      diskEl.style.transform = 'rotate(' + (easeOut(progress) * totalSpin).toFixed(2) + 'deg)';
+      if (progress < 1) {
+        requestAnimationFrame(frame);
+      } else {
+        var wrap   = diskEl.closest('.roulette-wrap');
+        var label  = wrap  && wrap.querySelector('.roulette-spin-label');
+        var result = wrap  && wrap.querySelector('.roulette-result');
+        if (label) {
+          label.style.transition = 'opacity 0.35s';
+          label.style.opacity = '0';
+        }
+        if (result) {
+          setTimeout(function() {
+            result.style.transition = 'opacity 0.6s, transform 0.6s';
+            result.style.opacity = '1';
+            result.style.transform = 'translateY(0)';
+          }, 250);
+        }
+        diskEl.style.boxShadow = success
+          ? '0 0 30px rgba(0,221,136,.7), 0 0 60px rgba(0,221,136,.3)'
+          : '0 0 30px rgba(255,68,85,.7), 0 0 60px rgba(255,68,85,.3)';
+      }
+    }
+    requestAnimationFrame(frame);
+  }   /* end _startRouletteAnim */
+
+  /* ══════════════════════════════════════════
+     🎆 IPO成功 花火アニメーション
+  ══════════════════════════════════════════ */
+  function launchIpoFireworks() {
+    /* 既にオーバーレイがあれば削除 */
+    var old = document.getElementById('ipo-fw-overlay');
+    if (old) old.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'ipo-fw-overlay';
+    overlay.style.cssText = [
+      'position:fixed','top:0','left:0','width:100vw','height:100vh',
+      'z-index:9999','background:rgba(0,0,0,.82)',
+      'display:flex','align-items:center','justify-content:center',
+      'flex-direction:column','cursor:pointer',
+    ].join(';');
+
+    /* Canvas */
+    var canvas = document.createElement('canvas');
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+    canvas.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none';
+    overlay.appendChild(canvas);
+
+    /* テキストコンテンツ */
+    var content = document.createElement('div');
+    content.style.cssText = [
+      'position:relative','z-index:10000','text-align:center',
+      'animation:ipoZoomIn .6s cubic-bezier(.22,1,.36,1) both',
+    ].join(';');
+    content.innerHTML = [
+      '<div style="font-size:clamp(28px,5vw,52px);font-weight:900;',
+        'color:#ffd700;text-shadow:0 0 30px #ffd700,0 0 60px rgba(255,215,0,.5);',
+        'letter-spacing:.06em;margin-bottom:12px">',
+        '🔔 東証上場承認 🔔',
+      '</div>',
+      '<div style="font-size:clamp(40px,7vw,80px);font-weight:900;',
+        'background:linear-gradient(135deg,#ffd700 0%,#fff 40%,#ffd700 70%,#ff8c00 100%);',
+        '-webkit-background-clip:text;-webkit-text-fill-color:transparent;',
+        'background-clip:text;text-shadow:none;letter-spacing:.04em;',
+        'filter:drop-shadow(0 0 20px rgba(255,215,0,.6))">',
+        '上　場　成　功！',
+      '</div>',
+      '<div style="font-size:clamp(16px,2.5vw,26px);color:#ffe;margin:14px 0 6px;',
+        'text-shadow:0 0 10px rgba(255,255,200,.8)">',
+        '🎊 おめでとうございます！ 🎊',
+      '</div>',
+      '<div id="ipo-fw-stats" style="font-size:clamp(13px,2vw,18px);color:#adf;',
+        'margin:10px 0 20px;line-height:1.8"></div>',
+      '<div style="font-size:13px;color:rgba(200,220,255,.5);margin-top:4px">',
+        '画面をクリックして続ける',
+      '</div>',
+    ].join('');
+    overlay.appendChild(content);
+
+    /* 花火ロジック */
+    var ctx   = canvas.getContext('2d');
+    var parts = [];
+    var trails= [];
+    var colors = [
+      '#ffd700','#ff6644','#44ffaa','#44aaff','#ff44cc',
+      '#ffffff','#ffaa44','#88ff44','#ff44ff','#44ffff',
+    ];
+    var frame = 0;
+    var raf;
+
+    function Particle(x, y, col) {
+      this.x = x; this.y = y; this.color = col;
+      var angle = Math.random() * Math.PI * 2;
+      var spd   = Math.random() * 9 + 1.5;
+      this.vx = Math.cos(angle) * spd;
+      this.vy = Math.sin(angle) * spd;
+      this.alpha = 1;
+      this.size  = Math.random() * 3 + 1;
+      this.decay = 0.012 + Math.random() * 0.01;
+      this.tail  = []; /* 軌跡 */
+    }
+    Particle.prototype.update = function() {
+      this.tail.push({x:this.x, y:this.y, a:this.alpha});
+      if (this.tail.length > 6) this.tail.shift();
+      this.x += this.vx; this.y += this.vy;
+      this.vy += 0.12;
+      this.vx *= 0.98;
+      this.alpha -= this.decay;
+    };
+    Particle.prototype.draw = function(ctx) {
+      /* 尾引き */
+      for (var i=0; i<this.tail.length; i++) {
+        var t = this.tail[i];
+        ctx.save();
+        ctx.globalAlpha = t.a * (i / this.tail.length) * 0.4;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, this.size * 0.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, this.alpha);
+      ctx.fillStyle = this.color;
+      ctx.shadowColor = this.color;
+      ctx.shadowBlur  = 6;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    };
+
+    function Trail(x, y) {
+      this.x = x; this.tx = x;
+      this.y = canvas.height + 20; this.ty = y;
+      this.color = colors[Math.floor(Math.random() * colors.length)];
+      this.alpha = 1;
+      this.spd = 22 + Math.random() * 12;
+      this.exploded = false;
+    }
+    Trail.prototype.update = function() {
+      this.y -= this.spd;
+      if (this.y <= this.ty && !this.exploded) {
+        this.exploded = true;
+        explode(this.x, this.y, this.color);
+      }
+    };
+    Trail.prototype.draw = function(ctx) {
+      if (this.exploded) return;
+      ctx.save();
+      ctx.globalAlpha = 0.9;
+      ctx.strokeStyle = this.color;
+      ctx.shadowColor = this.color;
+      ctx.shadowBlur  = 8;
+      ctx.lineWidth   = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(this.x, this.y + 18);
+      ctx.lineTo(this.x, this.y);
+      ctx.stroke();
+      ctx.restore();
+    };
+
+    function explode(x, y, col) {
+      var n = 90 + Math.floor(Math.random() * 50);
+      for (var i = 0; i < n; i++) parts.push(new Particle(x, y, col));
+      /* 星形ひらめき */
+      for (var j = 0; j < 8; j++) {
+        var sec = colors[Math.floor(Math.random() * colors.length)];
+        var ang = (j / 8) * Math.PI * 2;
+        var p = new Particle(x, y, sec);
+        p.vx = Math.cos(ang) * (5 + Math.random() * 4);
+        p.vy = Math.sin(ang) * (5 + Math.random() * 4);
+        parts.push(p);
+      }
+    }
+
+    function launch() {
+      var x  = canvas.width  * (0.15 + Math.random() * 0.7);
+      var ty = canvas.height * (0.05 + Math.random() * 0.45);
+      trails.push(new Trail(x, ty));
+    }
+
+    /* 初期バースト */
+    var burstPos = [
+      [canvas.width*0.25, canvas.height*0.25],
+      [canvas.width*0.5,  canvas.height*0.2],
+      [canvas.width*0.75, canvas.height*0.28],
+      [canvas.width*0.4,  canvas.height*0.35],
+      [canvas.width*0.62, canvas.height*0.18],
+    ];
+    burstPos.forEach(function(p, i) {
+      setTimeout(function() {
+        explode(p[0], p[1], colors[i % colors.length]);
+      }, i * 180);
+    });
+
+    function animate() {
+      raf = requestAnimationFrame(animate);
+      ctx.fillStyle = 'rgba(0,0,0,.18)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      /* 新しいロケット打ち上げ */
+      if (frame % 28 === 0) launch();
+      frame++;
+
+      /* トレイル更新 */
+      for (var i = trails.length-1; i>=0; i--) {
+        trails[i].update(); trails[i].draw(ctx);
+        if (trails[i].exploded) trails.splice(i,1);
+      }
+      /* パーティクル更新 */
+      for (var j = parts.length-1; j>=0; j--) {
+        parts[j].update(); parts[j].draw(ctx);
+        if (parts[j].alpha <= 0) parts.splice(j,1);
+      }
+    }
+    animate();
+
+    /* クリック or 15秒でオーバーレイ削除 */
+    function dismiss() {
+      cancelAnimationFrame(raf);
+      overlay.remove();
+    }
+    overlay.addEventListener('click', dismiss);
+    setTimeout(dismiss, 15000);
+
+    document.body.appendChild(overlay);
+  }
+
+  /* 新コンテンツの先頭要素が画面トップに来るようにスムーススクロール */
+  function scrollToFirst(el) {
+    if (!el) return;
+    requestAnimationFrame(function () {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
+  /* ── Enter キー（キーボードユーザー向けに引き続き動作）── */
+  inputEl.addEventListener('keydown', async function (e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const value = inputEl.value.trim();
+    inputEl.value = '';
+    const data = await post(value);
+    render(data);
+  });
+
+  /* ── ブラウザ閉じる / タブ閉じる → 自動セーブ + 確認ダイアログ ── */
+  var _gameInProgress = false;   // ゲームプレイ中フラグ
+  var _savedClean = false;       // 直近の保存以降に未保存の意思決定がなければ true
+
+  window.addEventListener('beforeunload', function (e) {
+    if (!_gameInProgress || !sid) return;
+
+    /* sendBeacon でサーバー側に自動セーブを依頼（fire-and-forget） */
+    try {
+      navigator.sendBeacon('/autosave', JSON.stringify({ sid: sid }));
+    } catch (_) {}
+
+    /* 保存後に意思決定がない場合はダイアログを表示しない */
+    if (_savedClean) return;
+
+    /* ネイティブ確認ダイアログを表示（"保存しますか？"のカスタム文は
+       セキュリティ制限により現在のブラウザでは表示されないが、
+       ダイアログ自体は表示される） */
+    e.preventDefault();
+    e.returnValue = 'ゲームを中断しますか？（自動セーブ済み）';
+    return e.returnValue;
+  });
+
+  /* render() の後にゲーム状態を監視してフラグを更新 */
+  var _origRender = render;
+  render = function(data) {
+    _origRender(data);
+    /* タイトル・エンディング以外はプレイ中と判定
+       ・タイトル画面：btns[0].style が "primary" ではなく value==='' かつ style が "continue" でない
+       ・CONTINUE状態：btns[0].style === "continue" → ゲーム中なので保存ボタンを表示し続ける */
+    var btns = data.buttons || [];
+    var isTitle  = btns.length === 1 && btns[0].value === '' && (btns[0].style || '') !== 'continue';
+    var isEnding = isTitle && (btns[0].label || '').indexOf('もう一度') !== -1;
+    var isContinue = btns.length === 1 && (btns[0].style || '') === 'continue';
+    if (isTitle || isEnding) {
+      _gameInProgress = false;
+    } else if (!!sid && (btns.length > 0 || isContinue)) {
+      _gameInProgress = true;
+    }
+    /* ヘッダー保存ボタン：ゲームプレイ中のみ表示 */
+    var hdrSaveEl = document.getElementById('hdr-save-btn');
+    if (hdrSaveEl) hdrSaveEl.style.display = _gameInProgress ? 'inline-block' : 'none';
+  };
+
+  /* ヘッダー保存ボタン処理 */
+  window.hdrSave = async function() {
+    if (!sid) return;
+    const data = await post('__SAVE__');
+    if (data.saved_ok === true) {
+      _savedClean = true;
+      if (data.save_b64) {
+        try { localStorage.setItem('ipo_save', data.save_b64); } catch(_) {}
+      }
+    }
+    render(data);
+  };
+
+  /* ── スタート ── */
+  (async function init() {
+    const data = await post('');
+    render(data);
+  })();
+})();
+
+/* ════════════════════════════════════════════
+   ① タイトル Canvas：旧朝日アニメーション削除済み
+════════════════════════════════════════════ */
+(function() {
+  'use strict';
+
+  var _canvasRAF = null;  // 変数宣言は残す（strict modeでのReferenceError防止）
+
+  function buildTitleCanvas() {
+    return; // 旧Canvasアニメーション無効化（画像背景に置き換え済み）
+    // 既存のCanvasがあれば削除
+    var old = document.getElementById('sunrise-canvas');
+    if (old) old.remove();
+
+    var titleEl = document.querySelector('.title-screen');
+    if (!titleEl) return;
+
+    var cv = document.createElement('canvas');
+    cv.id = 'sunrise-canvas';
+    titleEl.insertBefore(cv, titleEl.firstChild);
+
+    // タイトルコンテンツをラッパーで包む（z-index用）
+    var content = document.createElement('div');
+    content.className = 'title-canvas-content';
+    while (titleEl.childNodes.length > 1) {
+      content.appendChild(titleEl.childNodes[1]);
+    }
+    titleEl.appendChild(content);
+
+    var ctx = cv.getContext('2d');
+    var startTime = performance.now();
+    var CYCLE = 12000; // 12秒でひとサイクル（昇→中天→沈む→夜）
+
+    function resize() {
+      cv.width  = titleEl.clientWidth  || 600;
+      cv.height = titleEl.clientHeight || 220;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    // 東京証券取引所を中心とした兜町スカイライン
+    function drawCityline(ctx, w, h, alpha) {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      var baseColor = 'rgba(5,15,35,1)';
+      ctx.fillStyle = baseColor;
+      var ground = h * 0.88; // 地面のライン
+
+      // ── 左側の高層ビル群 ──
+      var leftBuildings = [
+        [.00,.0,.04,.24],[.04,.0,.03,.18],[.07,.0,.05,.32],
+        [.12,.0,.03,.22],[.15,.0,.04,.28],[.19,.0,.03,.15],
+        [.22,.0,.05,.35],[.27,.0,.03,.20],
+      ];
+      leftBuildings.forEach(function(b) {
+        var bx = b[0]*w, bw = b[2]*w, bh = b[3]*h*0.45;
+        ctx.fillRect(bx, ground - bh, bw, bh);
+        _drawWindows(ctx, bx, ground - bh, bw, bh, baseColor);
+      });
+
+      // ── 東京証券取引所ビル（中央・メイン） ──
+      var tseX = w * 0.32;     // 左端
+      var tseW = w * 0.36;     // 幅（画面中央に大きく）
+      var tseBaseH = h * 0.32; // 基礎部分の高さ
+      var tseUpperH = h * 0.12; // 上段セットバック部分
+      var tseCorH = h * 0.03;  // コーニス（庇）
+
+      // 1) 基礎部分（大きな石積み風の四角い建物）
+      ctx.fillStyle = 'rgba(8,18,40,1)';
+      ctx.fillRect(tseX, ground - tseBaseH, tseW, tseBaseH);
+
+      // 2) 上段セットバック（少し狭くなった上部構造）
+      var upperInset = tseW * 0.08;
+      ctx.fillRect(tseX + upperInset, ground - tseBaseH - tseUpperH,
+                   tseW - upperInset*2, tseUpperH);
+
+      // 3) コーニス（張り出した庇 — 東証の特徴的な屋根ライン）
+      var corInset = -tseW * 0.02; // 少しはみ出す
+      ctx.fillRect(tseX + upperInset + corInset, ground - tseBaseH - tseUpperH - tseCorH,
+                   tseW - upperInset*2 - corInset*2, tseCorH);
+
+      // 4) 屋上の小さなペントハウス
+      var phW = tseW * 0.18;
+      var phH = h * 0.05;
+      var phX = tseX + (tseW - phW) / 2;
+      ctx.fillRect(phX, ground - tseBaseH - tseUpperH - tseCorH - phH, phW, phH);
+
+      // 5) 石積み目地ライン（横線で重厚感）
+      ctx.strokeStyle = 'rgba(30,50,80,0.4)';
+      ctx.lineWidth = 1;
+      for (var ly = ground - tseBaseH + 12; ly < ground - 6; ly += 10) {
+        ctx.beginPath();
+        ctx.moveTo(tseX + 2, ly);
+        ctx.lineTo(tseX + tseW - 2, ly);
+        ctx.stroke();
+      }
+
+      // 6) 東証ビルの窓（整然とした格子状）
+      ctx.fillStyle = baseColor;
+      // 基礎部分の窓
+      for (var wy = ground - tseBaseH + 8; wy < ground - 8; wy += 9) {
+        for (var wx = tseX + 6; wx < tseX + tseW - 6; wx += 8) {
+          if (Math.random() > 0.40) {
+            ctx.fillStyle = 'rgba(255,240,160,' + (0.15 + Math.random()*.35) + ')';
+            ctx.fillRect(wx, wy, 4, 4);
+            ctx.fillStyle = baseColor;
+          }
+        }
+      }
+      // 上段部分の窓
+      for (var wy = ground - tseBaseH - tseUpperH + 6; wy < ground - tseBaseH - 4; wy += 8) {
+        for (var wx = tseX + upperInset + 6; wx < tseX + tseW - upperInset - 6; wx += 7) {
+          if (Math.random() > 0.45) {
+            ctx.fillStyle = 'rgba(255,240,160,' + (0.18 + Math.random()*.3) + ')';
+            ctx.fillRect(wx, wy, 3, 3);
+            ctx.fillStyle = baseColor;
+          }
+        }
+      }
+
+      // 7) 正面の大きな看板エリア（JPXサインの位置）
+      var signW = tseW * 0.24;
+      var signH = tseBaseH * 0.28;
+      var signX = tseX + (tseW - signW) / 2;
+      var signY = ground - tseBaseH + tseBaseH * 0.18;
+      ctx.fillStyle = 'rgba(15,25,50,0.9)';
+      ctx.fillRect(signX, signY, signW, signH);
+      // 看板の縁取り
+      ctx.strokeStyle = 'rgba(200,180,120,0.3)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(signX, signY, signW, signH);
+
+      // 8) 正面入口（アーチ型）
+      var entW = tseW * 0.10;
+      var entH = tseBaseH * 0.18;
+      var entX = tseX + (tseW - entW) / 2;
+      ctx.fillStyle = 'rgba(2,8,20,1)';
+      ctx.fillRect(entX, ground - entH, entW, entH);
+
+      // 9) 左右の並木（東証前の街路樹）
+      ctx.fillStyle = 'rgba(10,35,15,0.8)';
+      var treePositions = [tseX - w*0.03, tseX - w*0.01, tseX + tseW + w*0.005, tseX + tseW + w*0.025];
+      treePositions.forEach(function(tx) {
+        var treeH = h * 0.08;
+        var treeR = w * 0.012;
+        // 幹
+        ctx.fillStyle = 'rgba(30,20,10,0.7)';
+        ctx.fillRect(tx + treeR*0.6, ground - treeH, treeR*0.4, treeH * 0.5);
+        // 葉
+        ctx.fillStyle = 'rgba(15,45,20,0.85)';
+        ctx.beginPath();
+        ctx.arc(tx + treeR, ground - treeH, treeR, 0, Math.PI*2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(tx + treeR*0.5, ground - treeH*0.85, treeR*0.8, 0, Math.PI*2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(tx + treeR*1.5, ground - treeH*0.85, treeR*0.8, 0, Math.PI*2);
+        ctx.fill();
+      });
+
+      // ── 右側の高層ビル群 ──
+      ctx.fillStyle = baseColor;
+      var rightBuildings = [
+        [.70,.0,.04,.26],[.74,.0,.03,.18],[.77,.0,.05,.38],
+        [.82,.0,.03,.22],[.85,.0,.06,.30],[.91,.0,.03,.16],
+        [.94,.0,.04,.28],[.98,.0,.03,.20],
+      ];
+      rightBuildings.forEach(function(b) {
+        var bx = b[0]*w, bw = b[2]*w, bh = b[3]*h*0.45;
+        ctx.fillRect(bx, ground - bh, bw, bh);
+        _drawWindows(ctx, bx, ground - bh, bw, bh, baseColor);
+      });
+
+      ctx.restore();
+    }
+
+    // 窓描画ヘルパー
+    function _drawWindows(ctx, bx, by, bw, bh, baseColor) {
+      for (var wy = by + 4; wy < by + bh - 4; wy += 7) {
+        for (var wx = bx + 2; wx < bx + bw - 2; wx += 5) {
+          if (Math.random() > 0.55) {
+            ctx.fillStyle = 'rgba(255,240,160,' + (0.2 + Math.random()*.4) + ')';
+            ctx.fillRect(wx, wy, 3, 3);
+            ctx.fillStyle = baseColor;
+          }
+        }
+      }
+    }
+
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function lerpColor(c1, c2, t) {
+      return [
+        Math.round(lerp(c1[0], c2[0], t)),
+        Math.round(lerp(c1[1], c2[1], t)),
+        Math.round(lerp(c1[2], c2[2], t)),
+      ];
+    }
+    function rgb(c) { return 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')'; }
+
+    // 時刻ごとの空色（t: 0=夜明け前 0.2=日の出 0.4=正午 0.65=夕暮れ 0.85=日没 1=夜）
+    var skyStops = [
+      { t:0.00, top:[5,8,30],    bot:[20,30,70]  }, // 夜明け前
+      { t:0.15, top:[60,30,80],  bot:[180,80,40] }, // 夜明け（紫→オレンジ）
+      { t:0.25, top:[60,120,200],bot:[255,140,50] }, // 日の出（青→橙）
+      { t:0.45, top:[30,100,200],bot:[120,180,255]}, // 朝（青空）
+      { t:0.55, top:[20,80,180], bot:[80,150,255] }, // 正午
+      { t:0.70, top:[40,60,140], bot:[230,120,50] }, // 夕暮れ始まり
+      { t:0.80, top:[30,20,80],  bot:[200,60,20]  }, // 日没（深い赤）
+      { t:0.92, top:[10,10,40],  bot:[60,20,60]   }, // 夕闇
+      { t:1.00, top:[5,8,30],    bot:[20,30,70]  }, // 夜
+    ];
+
+    function getSkyColor(t, which) {
+      for (var i = 0; i < skyStops.length - 1; i++) {
+        var s0 = skyStops[i], s1 = skyStops[i+1];
+        if (t >= s0.t && t <= s1.t) {
+          var f = (t - s0.t) / (s1.t - s0.t);
+          return lerpColor(s0[which], s1[which], f);
+        }
+      }
+      return skyStops[skyStops.length-1][which];
+    }
+
+    function draw(ts) {
+      if (!document.getElementById('sunrise-canvas')) return; // 削除済みなら停止
+      _canvasRAF = requestAnimationFrame(draw);
+      var elapsed = (ts - startTime) % CYCLE;
+      var t = elapsed / CYCLE;
+      var w = cv.width, h = cv.height;
+
+      // 空グラデーション
+      var topC = getSkyColor(t, 'top');
+      var botC = getSkyColor(t, 'bot');
+      var grad = ctx.createLinearGradient(0, 0, 0, h);
+      grad.addColorStop(0, rgb(topC));
+      grad.addColorStop(1, rgb(botC));
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+
+      // 太陽の軌道（t=0.15〜t=0.85）
+      var sunVisible = t > 0.12 && t < 0.88;
+      if (sunVisible) {
+        // 0.15→0.50: 昇る  0.50→0.85: 沈む
+        var sunT = (t - 0.15) / 0.73; // 0→1
+        // 放物線軌道
+        var sunX = w * (0.15 + sunT * 0.70);
+        var arcH = h * 0.75;
+        var sunY = (h * 0.85) - arcH * 4 * sunT * (1 - sunT);
+
+        // 太陽の輝き（グロー）
+        var sunR   = t < 0.25 || t > 0.75 ? 22 : 18; // 水平線付近は大きく
+        var glowR1 = sunR * 3.5;
+        var glowR2 = sunR * 6;
+        var glow1 = ctx.createRadialGradient(sunX, sunY, sunR * 0.5, sunX, sunY, glowR1);
+        glow1.addColorStop(0,   'rgba(255,240,180,.35)');
+        glow1.addColorStop(1,   'rgba(255,200,80,0)');
+        ctx.fillStyle = glow1;
+        ctx.beginPath(); ctx.arc(sunX, sunY, glowR1, 0, Math.PI*2); ctx.fill();
+
+        var glow2 = ctx.createRadialGradient(sunX, sunY, sunR, sunX, sunY, glowR2);
+        glow2.addColorStop(0,   'rgba(255,160,50,.12)');
+        glow2.addColorStop(1,   'rgba(255,100,0,0)');
+        ctx.fillStyle = glow2;
+        ctx.beginPath(); ctx.arc(sunX, sunY, glowR2, 0, Math.PI*2); ctx.fill();
+
+        // 太陽本体
+        var sunGrad = ctx.createRadialGradient(sunX - sunR*0.3, sunY - sunR*0.3, 2, sunX, sunY, sunR);
+        sunGrad.addColorStop(0, '#ffffff');
+        sunGrad.addColorStop(0.4, '#fff3a0');
+        sunGrad.addColorStop(1,   t > 0.65 ? '#ff6030' : '#ffcc40');
+        ctx.fillStyle = sunGrad;
+        ctx.beginPath(); ctx.arc(sunX, sunY, sunR, 0, Math.PI*2); ctx.fill();
+      }
+
+      // 地平線の光（水平線付近の散乱光）
+      if (sunVisible) {
+        var horizGrad = ctx.createLinearGradient(0, h*0.55, 0, h*0.85);
+        var horizAlpha = (t < 0.25 || t > 0.75) ? 0.25 : 0.10;
+        horizGrad.addColorStop(0, 'rgba(255,180,50,0)');
+        horizGrad.addColorStop(1, 'rgba(255,150,30,' + horizAlpha + ')');
+        ctx.fillStyle = horizGrad;
+        ctx.fillRect(0, h * 0.55, w, h * 0.45);
+      }
+
+      // 星（夜〜夜明け前 / 夕暮れ以降）
+      if (t < 0.18 || t > 0.78) {
+        var starAlpha = t < 0.18 ? (1 - t / 0.18) : ((t - 0.78) / 0.22);
+        starAlpha = Math.min(starAlpha, 0.9);
+        ctx.save();
+        ctx.globalAlpha = starAlpha * 0.8;
+        var stars = [[.12,.08],[.22,.15],[.38,.05],[.48,.18],[.58,.10],
+                     [.65,.06],[.72,.14],[.82,.08],[.91,.04],[.30,.12]];
+        stars.forEach(function(s) {
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(s[0]*w, s[1]*h*0.6, 1.2, 0, Math.PI*2);
+          ctx.fill();
+        });
+        ctx.restore();
+      }
+
+      // 都市シルエット
+      var cityAlpha = 0.85 + (t < 0.25 || t > 0.70 ? 0.12 : 0);
+      drawCityline(ctx, w, h, cityAlpha);
+
+      // 地面（暗い帯）
+      ctx.fillStyle = 'rgba(3,10,25,.95)';
+      ctx.fillRect(0, h * 0.88, w, h * 0.12);
+    }
+
+    _canvasRAF = requestAnimationFrame(draw);
+  }
+
+  // タイトル画面検出時にCanvasを起動
+  var _wasTitle = false;
+  var _canvasObserver = new MutationObserver(function() {
+    var isTitle = !!document.querySelector('.title-screen');
+    if (isTitle && !_wasTitle) {
+      setTimeout(buildTitleCanvas, 50);
+    } else if (!isTitle && _wasTitle) {
+      if (_canvasRAF) { cancelAnimationFrame(_canvasRAF); _canvasRAF = null; }
+    }
+    _wasTitle = isTitle;
+  });
+  _canvasObserver.observe(document.getElementById('story'), { childList: true, subtree: true });
+})();
+
+/* ════════════════════════════════════════════
+   ② BGM：Web Audio API による勇気が出るアップビートBGM
+════════════════════════════════════════════ */
+(function() {
+  'use strict';
+
+  var _audioCtx = null;
+  var _masterGain = null;
+  var _muted = false;
+  var _bgmStarted = false;
+  var _scheduledNodes = [];
+  var _loopTimeout = null;
+  var _wasPlaying = false;
+
+  var NOTE = {
+    D4:293.66, E4:329.63, Fs4:369.99, G4:392.00, A4:440.00, B4:493.88,
+    Cs5:554.37, D5:587.33, E5:659.25, Fs5:739.99, G5:783.99, A5:880.00,
+    _:0  // 休符
+  };
+
+  // D major スケール 勇気が出るメロディー（8小節ループ）
+  // 各要素: [音名, 長さ(拍)]  BPM=96
+  var MELODY = [
+    // Aメロ（上昇感）
+    ['D4',0.5],['E4',0.5],['Fs4',1],['A4',1],['_',0.5],['A4',0.25],['Fs4',0.25],
+    ['D5',1.5],['B4',0.5],['A4',1],['Fs4',0.5],['D4',0.5],
+    // Bメロ（力強く）
+    ['E4',0.5],['Fs4',0.5],['G4',1],['B4',1],['_',0.5],['B4',0.25],['G4',0.25],
+    ['A4',2],['Fs4',1],
+    // Cメロ（クライマックス的上昇）
+    ['D5',0.5],['E5',0.5],['Fs5',1],['E5',0.5],['D5',0.5],
+    ['B4',0.5],['A4',0.5],['Fs4',1],['D4',1],
+    // Dメロ（落ち着いて次のループへ）
+    ['A4',0.5],['B4',0.5],['D5',1.5],['A4',0.5],
+    ['Fs4',0.5],['E4',0.5],['D4',2],['_',0.5],
+  ];
+
+  var HARMONY = [
+    ['D4',4],['A4',4],['G4',4],['D4',4],
+    ['E4',4],['B4',4],['A4',4],['D4',4],
+  ];
+
+  var BPM = 96;
+  var BEAT = 60 / BPM;
+
+  function initAudio() {
+    if (_audioCtx) return;
+    _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    _masterGain = _audioCtx.createGain();
+    _masterGain.gain.value = 0.18;
+    _masterGain.connect(_audioCtx.destination);
+  }
+
+  function playNote(freq, startTime, duration, gainVal, type) {
+    if (!freq || freq === 0) return;
+    var osc = _audioCtx.createOscillator();
+    var g   = _audioCtx.createGain();
+    osc.type = type || 'triangle';
+    osc.frequency.value = freq;
+    var attack = 0.04, release = 0.12;
+    g.gain.setValueAtTime(0, startTime);
+    g.gain.linearRampToValueAtTime(gainVal, startTime + attack);
+    g.gain.setValueAtTime(gainVal, startTime + duration - release);
+    g.gain.linearRampToValueAtTime(0, startTime + duration);
+    osc.connect(g);
+    g.connect(_masterGain);
+    osc.start(startTime);
+    osc.stop(startTime + duration + 0.01);
+    _scheduledNodes.push(osc);
+  }
+
+  function scheduleMelody(startAt) {
+    var t = startAt;
+    MELODY.forEach(function(n) {
+      var freq = NOTE[n[0]];
+      var dur  = n[1] * BEAT;
+      playNote(freq, t, dur * 0.88, 0.7, 'triangle');
+      t += dur;
+    });
+
+    // ハーモニー（サブ旋律）
+    var ht = startAt;
+    HARMONY.forEach(function(n) {
+      var freq = NOTE[n[0]];
+      var dur  = n[1] * BEAT;
+      playNote(freq, ht, dur * 0.9, 0.22, 'sine');
+      ht += dur;
+    });
+
+    // 総尺計算（メロディーとハーモニーの長い方）
+    var melodyLen = MELODY.reduce(function(s,n){return s+n[1]*BEAT;},0);
+    return melodyLen;
+  }
+
+  function startBGM() {
+    if (_bgmStarted || _muted) return;
+    initAudio();
+    if (_audioCtx.state === 'suspended') _audioCtx.resume();
+    _bgmStarted = true;
+
+    function loop() {
+      var now = _audioCtx.currentTime;
+      var len = scheduleMelody(now + 0.05);
+      _loopTimeout = setTimeout(loop, (len - 0.3) * 1000);
+    }
+    loop();
+
+    var btn = document.getElementById('sound-btn');
+    if (btn) { btn.style.display = 'inline-block'; btn.textContent = '🔊 SOUND OFF'; }
+  }
+
+  function stopBGM() {
+    _bgmStarted = false;
+    if (_loopTimeout) { clearTimeout(_loopTimeout); _loopTimeout = null; }
+    _scheduledNodes.forEach(function(n) { try { n.stop(); } catch(e){} });
+    _scheduledNodes = [];
+  }
+
+  window.toggleSound = function() {
+    _muted = !_muted;
+    var btn = document.getElementById('sound-btn');
+    if (_muted) {
+      // スケジュール済みのrampも含めて完全にゲインをゼロにする
+      if (_masterGain && _audioCtx) {
+        var _t = _audioCtx.currentTime;
+        _masterGain.gain.cancelScheduledValues(_t);
+        _masterGain.gain.setValueAtTime(0, _t);
+      }
+      if (btn) { btn.textContent = '🔇 SOUND ON'; btn.classList.add('muted'); }
+    } else {
+      if (_masterGain && _audioCtx) {
+        var _t2 = _audioCtx.currentTime;
+        _masterGain.gain.cancelScheduledValues(_t2);
+        _masterGain.gain.setValueAtTime(0.18, _t2);
+      }
+      if (!_bgmStarted) startBGM();
+      if (btn) { btn.textContent = '🔊 SOUND OFF'; btn.classList.remove('muted'); }
+    }
+  };
+
+  // ── BGM開始：ブラウザのAutoplay Policy対応 ──────────────────
+  // AudioContextはユーザージェスチャー後でないと動作しないため、
+  // ページ読み込み直後から「BGM開始待機」フラグを立てておき、
+  // 最初のクリック・キー操作で確実に起動する。
+  var _bgmPending = true;   // ページ読み込み時点から待機
+
+  function _tryStartNow() {
+    if (_bgmStarted || _muted || !_bgmPending) return;
+    _bgmPending = false;
+    startBGM();
+  }
+
+  function _onFirstUserGesture() {
+    document.removeEventListener('click',     _onFirstUserGesture, true);
+    document.removeEventListener('keydown',   _onFirstUserGesture, true);
+    document.removeEventListener('touchstart',_onFirstUserGesture, true);
+    _tryStartNow();
+  }
+  document.addEventListener('click',     _onFirstUserGesture, true);
+  document.addEventListener('keydown',   _onFirstUserGesture, true);
+  document.addEventListener('touchstart',_onFirstUserGesture, true);
+
+  // タイトル画面が現れたらサウンドボタンを表示（BGM開始は上記リスナーに委ねる）
+  var _titleBGMObserver = new MutationObserver(function() {
+    var isTitle = !!document.querySelector('.title-screen');
+    if (isTitle && !_wasPlaying) {
+      _wasPlaying = true;
+      var btn = document.getElementById('sound-btn');
+      if (btn) btn.style.display = 'inline-block';
+      // 2回目以降：AudioContextが既に動作中なら即座に開始
+      if (!_muted && _audioCtx && _audioCtx.state === 'running') {
+        startBGM();
+      }
+    } else if (!isTitle) {
+      _wasPlaying = false;
+    }
+  });
+  _titleBGMObserver.observe(document.getElementById('story'), { childList: true, subtree: true });
+
+  /* BGM コントロールを外部モジュールに公開 */
+  window._bgmCtrl = {
+    getCtx:    function() { return _audioCtx; },
+    isMuted:   function() { return _muted; },
+    tryStart:  function() { _tryStartNow(); },
+    fadeDown:  function() {
+      initAudio();
+      if (!_masterGain || _muted) return;  // ミュート中はfadeDown不要
+      var t = _audioCtx.currentTime;
+      _masterGain.gain.cancelScheduledValues(t);
+      _masterGain.gain.setValueAtTime(_masterGain.gain.value, t);
+      _masterGain.gain.linearRampToValueAtTime(0.03, t + 0.4);
+    },
+    fadeUp: function() {
+      if (!_masterGain || _muted) return;
+      var t = _audioCtx.currentTime;
+      _masterGain.gain.cancelScheduledValues(t);
+      _masterGain.gain.setValueAtTime(_masterGain.gain.value, t);
+      _masterGain.gain.linearRampToValueAtTime(0.18, t + 1.8);
+    },
+    destination: function() {
+      initAudio();
+      return _audioCtx ? _audioCtx.destination : null;
+    }
+  };
+})();
+
+/* ════════════════════════════════════════════
+   スロット効果音モジュール
+════════════════════════════════════════════ */
+(function() {
+  'use strict';
+
+  var _spinTimers  = [];
+  var _sfxNodes    = [];
+
+  function ctx()  { return window._bgmCtrl && window._bgmCtrl.getCtx(); }
+  function dest() { return window._bgmCtrl && window._bgmCtrl.destination(); }
+
+  /* --- 汎用ノート再生 --- */
+  function playNote(freq, t, dur, vol, type, vibRate) {
+    var ac = ctx(); if (!ac || !freq) return;
+    var osc = ac.createOscillator();
+    var g   = ac.createGain();
+    osc.type = type || 'triangle';
+    osc.frequency.value = freq;
+    if (vibRate) {
+      var vib = ac.createOscillator();
+      var vg  = ac.createGain();
+      vib.frequency.value = vibRate;
+      vg.gain.value = freq * 0.012;
+      vib.connect(vg);
+      vg.connect(osc.frequency);
+      vib.start(t); vib.stop(t + dur + 0.05);
+      _sfxNodes.push(vib);
+    }
+    var att = Math.min(0.04, dur * 0.1), rel = Math.min(0.15, dur * 0.3);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t + att);
+    g.gain.setValueAtTime(vol, t + dur - rel);
+    g.gain.linearRampToValueAtTime(0, t + dur);
+    osc.connect(g); g.connect(dest());
+    osc.start(t); osc.stop(t + dur + 0.05);
+    _sfxNodes.push(osc);
+  }
+
+  function stopAll() {
+    _spinTimers.forEach(function(id) { clearTimeout(id); });
+    _spinTimers = [];
+    _sfxNodes.forEach(function(n) { try { n.stop(); } catch(e){} });
+    _sfxNodes = [];
+  }
+
+  /* ─── 回転中のチクタク音 ─── */
+  function playSpinTick() {
+    var ac = ctx(); if (!ac) return;
+    var dur = 2.5; // リール停止まで約2.4秒
+    var tickEvery = 85; // ms
+    var ticks = Math.ceil(dur * 1000 / tickEvery);
+    for (var i = 0; i < ticks; i++) {
+      (function(n) {
+        var id = setTimeout(function() {
+          var ac2 = ctx(); if (!ac2) return;
+          // ノイズバースト（クリック音）
+          var bufLen = Math.floor(ac2.sampleRate * 0.018);
+          var buf = ac2.createBuffer(1, bufLen, ac2.sampleRate);
+          var d = buf.getChannelData(0);
+          for (var j = 0; j < bufLen; j++) {
+            d[j] = (Math.random()*2-1) * Math.exp(-j / (bufLen * 0.15));
+          }
+          var src = ac2.createBufferSource();
+          src.buffer = buf;
+          var g = ac2.createGain();
+          // スピードアップ感：後半は速く音量高め
+          var progress = n / ticks;
+          g.gain.value = 0.12 + progress * 0.10;
+          // ハイパス（金属っぽさ）
+          var hpf = ac2.createBiquadFilter();
+          hpf.type = 'highpass';
+          hpf.frequency.value = 800 + progress * 1200;
+          src.connect(hpf); hpf.connect(g); g.connect(dest());
+          src.start();
+          _sfxNodes.push(src);
+        }, n * tickEvery);
+        _spinTimers.push(id);
+      })(i);
+    }
+  }
+
+  /* ─── リール停止クリック（重め）─── */
+  function playReelStop(heavy) {
+    var ac = ctx(); if (!ac) return;
+    var now = ac.currentTime;
+    var freq = heavy ? 120 : 200;
+    playNote(freq, now, 0.08, heavy ? 0.5 : 0.35, 'square');
+    // ノイズ混合
+    var bufLen = Math.floor(ac.sampleRate * 0.06);
+    var buf = ac.createBuffer(1, bufLen, ac.sampleRate);
+    var d = buf.getChannelData(0);
+    for (var j = 0; j < bufLen; j++) {
+      d[j] = (Math.random()*2-1) * Math.exp(-j / (bufLen * 0.2));
+    }
+    var src = ac.createBuffer(1, bufLen, ac.sampleRate); // reuse
+    var src2 = ac.createBufferSource();
+    src2.buffer = buf;
+    var g = ac.createGain(); g.gain.value = heavy ? 0.3 : 0.2;
+    src2.connect(g); g.connect(dest());
+    src2.start(now);
+    _sfxNodes.push(src2);
+  }
+
+  /* ─── 大当たり：トランペット・ファンファーレ ─── */
+  function playFanfare() {
+    var ac = ctx(); if (!ac) return;
+    stopAll();
+    var now = ac.currentTime;
+    // G4 - C5 - E5 - G5 - C6 上昇ファンファーレ
+    var seq = [
+      [392,  0.00, 0.14, 0.28, 'sawtooth', 5.5],
+      [392,  0.14, 0.14, 0.28, 'sawtooth', 5.5],
+      [523,  0.28, 0.18, 0.28, 'sawtooth', 5.5],
+      [659,  0.46, 0.18, 0.28, 'sawtooth', 5.5],
+      [784,  0.64, 0.22, 0.28, 'sawtooth', 5.5],
+      [1047, 0.86, 0.80, 0.32, 'sawtooth', 5.5],
+      // ハーモニー（5度下）
+      [261,  0.00, 0.14, 0.12, 'sine', 0],
+      [261,  0.14, 0.14, 0.12, 'sine', 0],
+      [349,  0.28, 0.18, 0.12, 'sine', 0],
+      [440,  0.46, 0.18, 0.12, 'sine', 0],
+      [523,  0.64, 0.22, 0.12, 'sine', 0],
+      [698,  0.86, 0.80, 0.15, 'sine', 0],
+    ];
+    seq.forEach(function(n) {
+      playNote(n[0], now + n[1], n[2], n[3], n[4], n[5]);
+    });
+    // 締め：G5 + E5 + C5 の和音
+    [[784,1.70,0.60,0.22],[659,1.70,0.60,0.18],[523,1.70,0.60,0.15]].forEach(function(n) {
+      playNote(n[0], now + n[1], n[2], n[3], 'sawtooth', 5.5);
+    });
+  }
+
+  /* ─── 悪結果：地獄に落ちる音 ─── */
+  function playDoom() {
+    var ac = ctx(); if (!ac) return;
+    stopAll();
+    var now = ac.currentTime;
+    // 半音下降クロマティック（C5から急降下）
+    var startFreq = 523.25;
+    for (var i = 0; i < 16; i++) {
+      (function(step) {
+        var freq = startFreq * Math.pow(2, -step / 12);
+        var t    = now + step * 0.10;
+        var vol  = 0.22 - step * 0.008;
+        playNote(freq, t, 0.11, Math.max(vol, 0.05), 'sawtooth');
+      })(i);
+    }
+    // 不吉な減七和音
+    var chordT = now + 0.55;
+    [[116,0.9,0.30,'sine'],[138,0.9,0.22,'sine'],[164,0.9,0.18,'sine'],[195,0.9,0.12,'sine']].forEach(function(n){
+      playNote(n[0], chordT, n[1], n[2], n[3]);
+    });
+    // 深いバス轟音（グロウル）
+    var bass = ac.createOscillator();
+    var bassG = ac.createGain();
+    bass.type = 'sawtooth';
+    bass.frequency.setValueAtTime(80, now + 0.5);
+    bass.frequency.linearRampToValueAtTime(28, now + 2.2);
+    bassG.gain.setValueAtTime(0, now + 0.5);
+    bassG.gain.linearRampToValueAtTime(0.40, now + 0.85);
+    bassG.gain.setValueAtTime(0.40, now + 1.8);
+    bassG.gain.linearRampToValueAtTime(0, now + 2.4);
+    bass.connect(bassG); bassG.connect(dest());
+    bass.start(now + 0.5); bass.stop(now + 2.5);
+    _sfxNodes.push(bass);
+    // トレモロ不協和音
+    playNote(233, now + 0.9, 1.2, 0.15, 'triangle');
+    playNote(247, now + 0.9, 1.2, 0.12, 'triangle'); // わずかにズレた半音
+  }
+
+  /* ─── 平穏：落ち着いたコード解決 ─── */
+  function playCalm() {
+    var ac = ctx(); if (!ac) return;
+    stopAll();
+    var now = ac.currentTime;
+    // D major アルペジオ（穏やか）
+    var chord = [293.66, 369.99, 440, 587.33];
+    chord.forEach(function(freq, i) {
+      playNote(freq, now + i * 0.09, 0.55, 0.10, 'sine');
+    });
+  }
+
+  /* ─── IPO成功：競馬G1ファンファーレ（Web Audio合成） ─── */
+  function playIpoFanfare() {
+    var ac = ctx(); if (!ac) return;
+    stopAll();
+    if (window._bgmCtrl) window._bgmCtrl.fadeDown();
+    var now = ac.currentTime;
+    var s = 60 / (116 * 4);   // 16th note duration at 116 BPM
+
+    // Bb major concert pitch — JRA G1ファンファーレ風
+    // [freq_Hz, duration_in_16ths, start_in_16ths]
+    var melody = [
+      [466.16,  1,  0.0], [466.16,  1,  1.2],  // pickup Bb4 Bb4
+      [698.46,  2,  2.4],                        // F5
+      [622.25,  1,  4.4], [587.33,  1,  5.4],   // Eb5 D5
+      [523.25,  2,  6.4], [466.16,  4,  8.4],   // C5 Bb4
+      [349.23,  5, 12.4], [466.16,  1, 17.4],   // F4 Bb4
+      [466.16,  1, 18.6], [587.33,  1, 19.8],   // Bb4 D5
+      [698.46,  2, 21.0], [932.33,  6, 23.0],   // F5 Bb5*
+      [830.61,  1, 29.0], [783.99,  1, 30.0],   // Ab5 G5
+      [698.46,  1, 31.0], [622.25,  1, 32.0],   // F5 Eb5
+      [587.33,  2, 33.0], [523.25,  2, 35.0],   // D5 C5
+      [466.16,  4, 37.0],                        // Bb4
+      [349.23,  1, 41.0], [466.16,  1, 42.2],   // F4 Bb4
+      [587.33,  1, 43.4], [698.46,  1, 44.6],   // D5 F5
+      [932.33, 14, 45.8],                        // Bb5 FINALE**
+    ];
+
+    melody.forEach(function(n) {
+      var freq = n[0], durS = n[1] * s * 0.92, startT = now + n[2] * s;
+      function makeBrassNote(f, vol) {
+        var flt = ac.createBiquadFilter();
+        flt.type = 'lowpass';
+        flt.frequency.setValueAtTime(2600, startT);
+        var osc = ac.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(f, startT);
+        if (durS > 0.32) {
+          var lfo = ac.createOscillator();
+          lfo.type = 'sine';
+          lfo.frequency.setValueAtTime(5.5, startT);
+          var lg = ac.createGain();
+          lg.gain.setValueAtTime(0, startT);
+          lg.gain.linearRampToValueAtTime(f * 0.006, startT + 0.17);
+          lfo.connect(lg); lg.connect(osc.frequency);
+          lfo.start(startT); lfo.stop(startT + durS + 0.1);
+          _sfxNodes.push(lfo);
+        }
+        var g = ac.createGain();
+        g.gain.setValueAtTime(0, startT);
+        g.gain.linearRampToValueAtTime(vol, startT + 0.013);
+        g.gain.setValueAtTime(vol, Math.max(startT + 0.014, startT + durS - 0.06));
+        g.gain.linearRampToValueAtTime(0, startT + durS + 0.06);
+        osc.connect(flt); flt.connect(g); g.connect(ac.destination);
+        osc.start(startT); osc.stop(startT + durS + 0.12);
+        _sfxNodes.push(osc);
+      }
+      makeBrassNote(freq, 0.38);
+      makeBrassNote(freq * 1.498, 0.09);  // 5th harmony
+    });
+
+    // Pedal tone: Bb2 — 全体を支える低音
+    var pedal = ac.createOscillator();
+    pedal.type = 'sine';
+    pedal.frequency.setValueAtTime(116.54, now);
+    var pg = ac.createGain();
+    pg.gain.setValueAtTime(0, now);
+    pg.gain.linearRampToValueAtTime(0.14, now + 0.3);
+    pg.gain.linearRampToValueAtTime(0.07, now + 5.5);
+    pg.gain.linearRampToValueAtTime(0, now + 8.0);
+    pedal.connect(pg); pg.connect(ac.destination);
+    pedal.start(now); pedal.stop(now + 8.2);
+    _sfxNodes.push(pedal);
+  }
+
+  /* ─── IPO失敗：這い上がるサウンド（低音から頂点へ） ─── */
+  function playIpoFailure() {
+    var ac = ctx(); if (!ac) return;
+    stopAll();
+    if (window._bgmCtrl) window._bgmCtrl.fadeDown();
+    var now = ac.currentTime;
+
+    // Cペンタトニック、最底辺から徐々に加速して頂点へ
+    // [freq_Hz, dur_s, start_s]
+    var ascent = [
+      [ 65.41, 0.55, 0.00],  // C2 — 底辺のうめき
+      [130.81, 0.48, 0.62],  // C3
+      [164.81, 0.40, 1.16],  // E3
+      [196.00, 0.33, 1.60],  // G3
+      [261.63, 0.27, 1.97],  // C4 — 中間点
+      [329.63, 0.21, 2.27],  // E4
+      [392.00, 0.17, 2.52],  // G4
+      [523.25, 0.14, 2.73],  // C5
+      [659.25, 0.11, 2.91],  // E5
+      [783.99, 0.09, 3.06],  // G5
+      [1046.5, 1.80, 3.19],  // C6 — 頂点（長い余韻・未解決）
+    ];
+
+    ascent.forEach(function(n) {
+      var freq = n[0], dur = n[1], startT = now + n[2];
+      var progress = n[2] / 5.0;
+      // ピアノ風: 基音 + 第2倍音 + 第3倍音
+      [1.0, 2.0, 3.0].forEach(function(mult, hi) {
+        var osc = ac.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq * mult, startT);
+        var baseVol = (hi === 0 ? 0.17 : hi === 1 ? 0.06 : 0.02) * (0.55 + progress * 0.45);
+        var g = ac.createGain();
+        g.gain.setValueAtTime(0, startT);
+        g.gain.linearRampToValueAtTime(baseVol, startT + 0.011);
+        g.gain.exponentialRampToValueAtTime(0.0001, startT + dur * (freq > 800 ? 2.8 : 1.5));
+        osc.connect(g); g.connect(ac.destination);
+        osc.start(startT); osc.stop(startT + dur * 3.0);
+        _sfxNodes.push(osc);
+      });
+    });
+
+    // 低音ドローン — 足場の重さ
+    var drone = ac.createOscillator();
+    drone.type = 'sine';
+    drone.frequency.setValueAtTime(48.99, now);  // G1 (very low)
+    var dg = ac.createGain();
+    dg.gain.setValueAtTime(0.20, now);
+    dg.gain.linearRampToValueAtTime(0.05, now + 2.2);
+    dg.gain.linearRampToValueAtTime(0, now + 5.5);
+    drone.connect(dg); dg.connect(ac.destination);
+    drone.start(now); drone.stop(now + 5.6);
+    _sfxNodes.push(drone);
+  }
+
+  /* 外部公開 */
+  window._slotSfx = {
+    spinStart:  function() {
+      if (window._bgmCtrl) window._bgmCtrl.fadeDown();
+      playSpinTick();
+    },
+    reelStop:    playReelStop,
+    fanfare:     playFanfare,
+    doom:        playDoom,
+    calm:        playCalm,
+    ipoFanfare:  playIpoFanfare,
+    ipoFailure:  playIpoFailure,
+    resumeBGM:  function() {
+      stopAll();
+      if (window._bgmCtrl) window._bgmCtrl.fadeUp();
+    }
+  };
+})();
+</script>
+</body>
+</html>
