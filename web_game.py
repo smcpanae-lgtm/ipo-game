@@ -5131,9 +5131,9 @@ _TITLE_IMG_PATH = (
 )
 
 
-@app.route("/static/<path:filename>")
-def serve_static(filename):
-    """アバター画像など static/ フォルダのファイルを配信する"""
+@app.route("/avatars/<path:filename>")
+def serve_avatars(filename):
+    """アバター画像を配信する（/static/がPythonAnywhereのnginxに横取りされるため/avatars/を使用）"""
     static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
     return send_file(os.path.join(static_dir, filename))
 
