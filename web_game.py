@@ -622,6 +622,29 @@ def bomb_html(text: str) -> str:
     )
 
 
+def _split_agm_result(text: str):
+    """AGM議決結果テキストを (議案結果, 株主反応, 閉会行) に分割する。
+    株主反応（── 株主反応 ── または 💬 で始まる行）を抽出し、
+    閉会行（『定時株主総会 閉会』を含む行）の直前に配置できるようにする。"""
+    lines = text.split("\n")
+    react_idx = None
+    closing_idx = None
+    for i, ln in enumerate(lines):
+        # 株主反応セクションは _secondary が必ず付ける「── 株主反応 ──」で判定
+        if react_idx is None and "── 株主反応 ──" in ln:
+            react_idx = i
+        if "定時株主総会 閉会" in ln:
+            closing_idx = i
+    if react_idx is None:
+        return text, "", ""
+    if closing_idx is None or closing_idx < react_idx:
+        return "\n".join(lines[:react_idx]), "\n".join(lines[react_idx:]), ""
+    main    = "\n".join(lines[:react_idx])
+    reaction = "\n".join(lines[react_idx:closing_idx])
+    closing  = "\n".join(lines[closing_idx:])
+    return main, reaction, closing
+
+
 def _rw_label(r: int) -> str:
     """資金残存Q数を人が読みやすいテキストに変換"""
     if r >= 99:
@@ -1892,7 +1915,7 @@ class GameSession:
                     f'📋 前Q意思決定の結果報告 — {esc(ev_title)}</div>'
                     f'<div style="font-size:12px;font-weight:700;margin-bottom:4px">'
                     f'{icon} {esc(ch_label.lstrip("ABCD. ")[:60])}</div>'
-                    f'<div style="font-size:12px;color:{"#99ffcc" if good else "#ffaa88"}">'
+                    f'<div class="do-text" style="font-size:12px;color:{"#99ffcc" if good else "#ffaa88"}">'
                     f'{esc(res_msg).replace(chr(10), "<br>")}</div>'
                     f'</div>'
                 )
@@ -1990,7 +2013,7 @@ class GameSession:
                     "創業からN-4期の事業実績を株主に報告し、役員の信任を得る重要な機会です。"
                 ),
                 f"📣 重要イベント：{esc(prev_label)} 定時株主総会", "gold"
-            ))
+            ), "event_panel")
 
             if t.n_period == -3:
                 # ── N-3期Q1専用：N-4期定時株主総会の固定議決報告 ──
@@ -2021,6 +2044,8 @@ class GameSession:
                 icon = "✅" if self._pending_agm_is_good else "⚠️"
                 border = "#00cc66" if self._pending_agm_is_good else "#ff6644"
                 header_color = "#00ffaa" if self._pending_agm_is_good else "#ff8866"
+                # 株主反応・閉会行を分離（株主反応は投資家アバターで1文字表示）
+                _agm_main, _agm_react, _agm_closing = _split_agm_result(self._pending_agm_result)
                 self._add(
                     f'<div class="deferred-outcome" style="border-left:5px solid {border};'
                     f'background:rgba(255,255,255,.07);padding:12px 16px;margin-bottom:8px;'
@@ -2029,9 +2054,19 @@ class GameSession:
                     f'letter-spacing:.5px;text-shadow:0 0 4px rgba(0,0,0,.5)">'
                     f'📋 定時株主総会 議決結果 — {esc(self._pending_agm_choice_label)}</div>'
                     f'<div style="font-size:12px;color:{"#99ffcc" if self._pending_agm_is_good else "#ffaa88"}">'
-                    f'{_colorize_agm_votes(esc(self._pending_agm_result).replace(chr(10), "<br>"))}</div>'
+                    f'{_colorize_agm_votes(esc(_agm_main).replace(chr(10), "<br>"))}</div>'
                     f'</div>'
                 )
+                # 株主反応（投資家アバター＋1文字表示）
+                if _agm_react.strip():
+                    _react_body = _agm_react.replace("── 株主反応 ──", "").strip()
+                    self._add(story_panel(
+                        esc(_react_body).replace(chr(10), "<br>"),
+                        "🗣 株主・投資家の反応", "gold"
+                    ), "investor_panel")
+                # 閉会行（即時表示）
+                if _agm_closing.strip():
+                    self._add(f'<div class="story-rule gold">{esc(_agm_closing.strip())}</div>')
                 # AGM後ナラティブ（安堵・今後の課題）
                 agm_narrative = self._call_gemini_agm_narrative(
                     prev_label, self._pending_agm_choice_label,
@@ -2183,7 +2218,7 @@ class GameSession:
                 "本日の取締役会で総会提案議案を最終決定します。<br><br>"
                 "💡 今ここで決定した内容が翌Q1の総会で正式決議されます。",
                 f"📣 事前準備：{esc(curr_label)} 定時株主総会 議案決定", "gold"
-            ))
+            ), "event_panel")
             # AGM議案事前決定イベントを末尾に挿入
             # Q4の他イベント（内定等）を先に処理することで agm_deferred フラグが確定する
             ipo_events = ipo_events + [agm_prep_evt]
@@ -2236,7 +2271,7 @@ class GameSession:
         is_world = hasattr(event, 'category')
         panel_title = f"🌍 外部環境イベント：{esc(event.title)}" if is_world else f"📋 社長へのご報告：{esc(event.title)}"
         panel_color = "red" if is_world else "yellow"
-        self._add(story_panel(desc, panel_title, panel_color))
+        self._add(story_panel(desc, panel_title, panel_color), "event_panel")
         prompt_text = "👤 社長、緊急対応が必要です。どう判断しますか？" if is_world else "👤 社長、あなたならどう判断しますか？"
         self._add(f'<div class="decision-prompt">{prompt_text}</div>')
         self._add("", "clear_advisor")   # 前イベントのアドバイスパネルをクリア
@@ -2674,7 +2709,7 @@ class GameSession:
         desc = esc(event.description).replace("\n", "<br>")
         self._add(story_panel(desc,
                                f"🌍 突発イベント！：{esc(event.title)}",
-                               "red"))
+                               "red"), "event_panel")
         self._add(f'<div class="decision-prompt">👤 社長、緊急対応が必要です。どう判断しますか？</div>')
         self._add("", "clear_advisor")   # 前イベントのアドバイスパネルをクリア
         self._add(choices_html(event.choices))
@@ -2901,7 +2936,7 @@ class GameSession:
                         "▼ N-3期定時株主総会の議決結果をご確認ください。<br><br>"
                         "上場申請には N-2期・N-1期ともに<b>無限定適正意見</b>が必要です。",
                         "🔑 N-2期 監査スタート（総会議決結果を確認）", "cyan"
-                    ))
+                    ), "advisor_panel")
                 else:
                     self._add(story_panel(
                         "📋 N-2期（直前々期）がスタートしました。<br><br>"
@@ -2909,7 +2944,7 @@ class GameSession:
                         "N-2期から2期間の財務監査が始まります。<br>"
                         "上場申請には N-2期・N-1期ともに<b>無限定適正意見</b>が必要です。",
                         "🔑 N-2期 監査スタート", "cyan"
-                    ))
+                    ), "advisor_panel")
             elif not c.audit_firm_agreed:
                 sr_note = "✅ ショートレビュー実施済み" if c.flags.short_review_done else "⚠️ ショートレビュー未実施"
                 accrual_note = "✅ 発生主義移行済み" if not c.flags.cash_basis_accounting else "⚠️ 発生主義移行未完了"
@@ -3171,11 +3206,15 @@ class GameSession:
             '<div class="roulette-spin-label">受嘱審査中<span class="roulette-dots">...</span></div>'
             f'<div class="roulette-result {cls}" style="opacity:0;transform:translateY(8px);">'
             f'  <div class="roulette-result-title">{title}</div>'
-            f'  <div class="roulette-result-body">{body}</div>'
             '</div>'
             '</div>'
         )
         self._add(roulette_html)
+        # 結果の詳細はIPO顧問が説明（アバター＋1文字表示）
+        self._add(story_panel(
+            esc(msg).replace(chr(10), "<br>"),
+            title, "green" if success else "red"
+        ), "advisor_panel")
 
         if not success:
             self._add('<div class="decision-prompt">👤 社長、監査法人に受嘱を断られました。どう対応しますか？</div>')
@@ -3263,7 +3302,7 @@ class GameSession:
                 "臨時株主総会での会計監査人選任も完了し、監査契約を正式に締結しました。<br>"
                 "▶ 監査契約 ✅ / 監査法人信頼+10",
                 "🎊 監査契約 締結（再挑戦成功）", "green"
-            ))
+            ), "advisor_panel")
         else:
             c.flags.total_risk_score += 15
             # 残存する問題点を具体的に表示

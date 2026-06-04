@@ -1443,6 +1443,186 @@ html:has(.title-screen) {
   .title-sub        { font-size: 13px !important; }
   .title-start-btn, .title-resume-btn { font-size: 14px !important; padding: 10px 20px !important; }
 }
+
+/* ════════════════════════════════════════════
+   🎭 アバターシステム
+════════════════════════════════════════════ */
+#avatar-panel {
+  position: fixed;
+  bottom: 75px;
+  left: 12px;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  pointer-events: none;
+}
+#avatar-panel.avatar-hidden {
+  opacity: 0;
+  transform: translateY(16px);
+}
+#avatar-panel.avatar-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+#avatar-img-wrap {
+  position: relative;
+  width: 108px;
+  height: 108px;
+}
+#avatar-img {
+  width: 108px;
+  height: 108px;
+  object-fit: cover;
+  object-position: center top;
+  border-radius: 8px;
+  border: 2px solid #3399dd;
+  box-shadow: 0 4px 18px rgba(0,100,200,.45);
+  display: block;
+  background: #0a1d38;
+}
+#avatar-panel.avatar-speaking #avatar-img {
+  border-color: #00e5ff;
+  box-shadow: 0 0 22px rgba(0,229,255,.65), 0 4px 18px rgba(0,100,200,.45);
+  animation: avatar-bob 0.38s ease-in-out infinite alternate;
+}
+@keyframes avatar-bob {
+  from { transform: translateY(0px); }
+  to   { transform: translateY(-3px); }
+}
+#avatar-name-plate {
+  background: rgba(0,15,50,.88);
+  border: 1px solid rgba(0,200,255,.35);
+  border-radius: 5px;
+  padding: 2px 8px;
+  text-align: center;
+}
+#avatar-name {
+  font-size: 10px;
+  font-weight: 700;
+  color: #00e5ff;
+  letter-spacing: .5px;
+  white-space: nowrap;
+}
+#avatar-role {
+  font-size: 8px;
+  color: #7aaccc;
+  letter-spacing: .5px;
+  white-space: nowrap;
+}
+@media (max-width: 768px) {
+  #avatar-panel { bottom: 68px; left: 4px; }
+  #avatar-img-wrap { width: 80px; height: 80px; }
+  #avatar-img { width: 80px; height: 80px; }
+}
+
+/* ── 吹き出し（IPO先生アドバイスパネル）── */
+.advisor-chat {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(0,15,40,.96), rgba(5,25,55,.97));
+  border: 1px solid rgba(255,200,60,.25);
+  margin: 6px 0;
+}
+/* ── 吹き出し（発言中のチャットバブル）── */
+.bubble-active {
+  position: relative;
+  border-radius: 18px !important;
+  margin-left: 26px;           /* 左のアバターから伸びてくるイメージで右へインデント */
+  padding: 14px 18px !important;
+  background: linear-gradient(135deg, rgba(8,30,66,.99) 0%, rgba(12,46,92,.99) 100%) !important;
+  border: 1.5px solid rgba(0,229,255,.55) !important;
+  border-left: 5px solid #00e5ff !important;
+  box-shadow:
+    0 8px 24px rgba(0,0,0,.5),
+    0 0 30px rgba(0,229,255,.22),
+    inset 0 1px 0 rgba(255,255,255,.08) !important;
+  animation: bubblePop .3s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes bubblePop {
+  0%   { transform: scale(.94) translateX(-10px); opacity: 0; }
+  100% { transform: scale(1)   translateX(0);     opacity: 1; }
+}
+/* 吹き出しの尾（左辺の下＝アバター方向へ突き出す三角）*/
+.bubble-active::before {
+  content: '';
+  position: absolute;
+  left: -16px;
+  bottom: 16px;
+  width: 0; height: 0;
+  border-top: 11px solid transparent;
+  border-bottom: 11px solid transparent;
+  border-right: 17px solid rgba(0,229,255,.55);
+}
+.bubble-active::after {
+  content: '';
+  position: absolute;
+  left: -13px;
+  bottom: 18px;
+  width: 0; height: 0;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-right: 14px solid rgba(10,40,86,.99);
+}
+/* 話者ヘッダー（顔＋名前）── チャットの発言者ピル */
+.chat-speaker {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 12px;
+  padding: 4px 14px 4px 4px;
+  background: linear-gradient(90deg, rgba(0,229,255,.22), rgba(0,229,255,.06));
+  border: 1px solid rgba(0,229,255,.5);
+  border-radius: 22px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.35);
+}
+.chat-speaker-ava {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center top;
+  border: 2px solid #00e5ff;
+  box-shadow: 0 0 10px rgba(0,229,255,.7);
+  flex-shrink: 0;
+  background: #0a1d38;
+}
+.chat-speaker-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: #aef3ff;
+  letter-spacing: .5px;
+  text-shadow: 0 0 6px rgba(0,229,255,.4);
+}
+.chat-speaker-role {
+  font-size: 10px;
+  color: #8fc4dd;
+}
+.adv-header {
+  font-size: 12px; color: #ffcc44; font-weight: 700;
+  letter-spacing: 1px; margin-bottom: 8px;
+  padding-bottom: 5px; border-bottom: 1px solid rgba(255,200,60,.2);
+}
+.adv-context {
+  font-size: 13px; color: #cce8ff; line-height: 1.85; margin-bottom: 6px;
+}
+.adv-ipo-tip {
+  font-size: 12px; color: #aadd88; line-height: 1.75;
+  background: rgba(100,200,100,.06); border-left: 3px solid #66bb44;
+  padding: 6px 10px; border-radius: 4px; margin: 5px 0;
+}
+.adv-warning {
+  font-size: 12px; color: #ffaa55; background: rgba(200,100,0,.1);
+  border-left: 3px solid #ff8844; padding: 5px 10px; border-radius: 4px; margin: 5px 0;
+}
+.adv-footer {
+  font-size: 11px; color: #7aaccc; margin-top: 8px;
+  padding-top: 6px; border-top: 1px solid rgba(100,150,200,.2);
+}
+/* タイプ待ち要素：レイアウトは確保しつつ中身を隠す（事前表示を防ぐ）*/
+.tw-pending { visibility: hidden; }
 </style>
 </head>
 <body>
@@ -1482,6 +1662,17 @@ html:has(.title-screen) {
 
 <!-- ② BGM サウンド ON/OFF ボタン（右下固定） -->
 <button id="sound-btn" onclick="toggleSound()">🔊 SOUND OFF</button>
+
+<!-- 🎭 アバターパネル -->
+<div id="avatar-panel" class="avatar-hidden">
+  <div id="avatar-img-wrap">
+    <img id="avatar-img" src="" alt="character" />
+  </div>
+  <div id="avatar-name-plate">
+    <div id="avatar-name"></div>
+    <div id="avatar-role"></div>
+  </div>
+</div>
 
 <script>
 (function () {
@@ -1735,13 +1926,17 @@ html:has(.title-screen) {
         if (oldTitle) oldTitle.remove();
       }
 
-      let firstNew = null;
-      for (const item of data.story_items) {
-        const el = appendStory(item.html, item.type);
-        if (!firstNew) firstNew = el;
+      /* 🎭 逐次表示エンジン：1パネルずつ順番に表示（タイプライター完了で次へ）*/
+      if (window.AvatarSystem && window.AvatarSystem.revealBatch) {
+        window.AvatarSystem.revealBatch(data.story_items, appendStory, scrollToFirst);
+      } else {
+        let firstNew = null;
+        for (const item of data.story_items) {
+          const el = appendStory(item.html, item.type);
+          if (!firstNew) firstNew = el;
+        }
+        scrollToFirst(firstNew);
       }
-      /* 新しいコンテンツの「先頭」が見えるようにスクロール（大量バッチでも確実） */
-      scrollToFirst(firstNew);
     }
 
     sideEl.innerHTML = data.sidebar || '';
@@ -3020,7 +3215,7 @@ html:has(.title-screen) {
 
   /* 外部公開 */
   window._slotSfx = {
-    spinStart:  function() {
+    spinStart: function() {
       if (window._bgmCtrl) window._bgmCtrl.fadeDown();
       playSpinTick();
     },
@@ -3035,6 +3230,349 @@ html:has(.title-screen) {
       if (window._bgmCtrl) window._bgmCtrl.fadeUp();
     }
   };
+})();
+
+/* ════════════════════════════════════════════
+   🎭 AvatarSystem — 口パク・タイプライター演出
+   将来拡張ポイント:
+     window.AvatarSystem.playVoice(url)  ... TTS音声
+     window.AvatarSystem.setEmotion(key) ... 表情切替
+════════════════════════════════════════════ */
+(function() {
+  'use strict';
+
+  /* ── 話者定義 ─────────────────────────── */
+  var SPEAKERS = {
+    teacher:     { normal:'/static/teacher_normal.png',     mouth:'/static/teacher_mouth.png',     name:'IPO先生',        role:'IPO準備専門家' },
+    advisor:     { normal:'/static/advisor_normal.png',     mouth:'/static/advisor_mouth.png',     name:'IPO顧問',        role:'上場準備アドバイザー' },
+    underwriter: { normal:'/static/underwriter_normal.png', mouth:'/static/underwriter_mouth.png', name:'主幹事担当者',    role:'引受証券会社' },
+    ceo:         { normal:'/static/ceo_normal.png',         mouth:'/static/ceo_mouth.png',         name:'社長',           role:'代表取締役' },
+    cfo:         { normal:'/static/cfo_normal.png',         mouth:'/static/cfo_mouth.png',         name:'CFO',            role:'最高財務責任者' },
+    director_a:  { normal:'/static/director_a_normal.png',  mouth:'/static/director_a_mouth.png',  name:'社外取締役A',    role:'独立社外取締役' },
+    director_b:  { normal:'/static/director_b_normal.png',  mouth:'/static/director_b_mouth.png',  name:'社外取締役B',    role:'独立社外取締役' },
+    investor_a:  { normal:'/static/investor_a_normal.png',  mouth:'/static/investor_a_mouth.png',  name:'投資家',         role:'エンジェル投資家' },
+    investor_b:  { normal:'/static/investor_b_normal.png',  mouth:'/static/investor_b_mouth.png',  name:'投資家B',        role:'機関投資家' },
+  };
+
+  /* ── DOM 参照 ────────────────────────── */
+  var panelEl = null, imgEl = null, nameEl = null, roleEl = null;
+  var currentSpeaker = null;
+  var mouthTimer = null, mouthOpen = false, hideTimer = null;
+
+  function init() {
+    panelEl = document.getElementById('avatar-panel');
+    imgEl   = document.getElementById('avatar-img');
+    nameEl  = document.getElementById('avatar-name');
+    roleEl  = document.getElementById('avatar-role');
+  }
+
+  /* ── 話者切替 ────────────────────────── */
+  function setSpeaker(key) {
+    var sp = SPEAKERS[key] || SPEAKERS['teacher'];
+    currentSpeaker = sp;
+    imgEl.src       = sp.normal;
+    nameEl.textContent = sp.name;
+    roleEl.textContent = sp.role;
+  }
+
+  /* ── パネル表示 / 非表示 ─────────────── */
+  function showPanel() {
+    if (!panelEl) return;
+    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+    panelEl.classList.remove('avatar-hidden');
+    panelEl.classList.add('avatar-visible');
+  }
+  function hidePanel(delay) {
+    if (!panelEl) return;
+    hideTimer = setTimeout(function() {
+      stopMouth();
+      panelEl.classList.remove('avatar-visible');
+      panelEl.classList.add('avatar-hidden');
+    }, delay == null ? 3000 : delay);
+  }
+
+  /* ── 口パクアニメーション ──────────────── */
+  function startMouth() {
+    stopMouth();
+    if (!panelEl) return;
+    panelEl.classList.add('avatar-speaking');
+    mouthOpen = false;
+    mouthTimer = setInterval(function() {
+      mouthOpen = !mouthOpen;
+      if (imgEl && currentSpeaker) {
+        imgEl.src = mouthOpen ? currentSpeaker.mouth : currentSpeaker.normal;
+      }
+    }, 150);
+  }
+  function stopMouth() {
+    if (mouthTimer) { clearInterval(mouthTimer); mouthTimer = null; }
+    if (panelEl) panelEl.classList.remove('avatar-speaking');
+    if (imgEl && currentSpeaker) imgEl.src = currentSpeaker.normal;
+  }
+
+  function hideNow() {
+    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+    stopMouth();
+    if (!panelEl) return;
+    panelEl.classList.remove('avatar-visible');
+    panelEl.classList.add('avatar-hidden');
+  }
+
+  /* ── タイプ音（ピピッ）──────────────────── */
+  function playBlip() {
+    try {
+      if (!window._bgmCtrl) return;
+      window._bgmCtrl.destination();          // AudioContextを初期化
+      var ac = window._bgmCtrl.getCtx();
+      if (!ac) return;
+      if (window._bgmCtrl.isMuted && window._bgmCtrl.isMuted()) return;
+      var o = ac.createOscillator();
+      var g = ac.createGain();
+      o.type = 'square';
+      o.frequency.value = 620 + Math.random() * 80;
+      var now = ac.currentTime;
+      g.gain.setValueAtTime(0.0, now);
+      g.gain.linearRampToValueAtTime(0.04, now + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
+      o.connect(g); g.connect(ac.destination);
+      o.start(now); o.stop(now + 0.06);
+    } catch (e) {}
+  }
+
+  /* ── 逐次表示エンジン 状態 ──────────────── */
+  var _gen = 0;                 // 世代カウンタ（新バッチで無効化）
+  var _typeTimer = null;        // 現在のタイプライターtimeout
+  var _typeFinish = null;       // 現在のタイプを即時完了させる関数
+  var _pending = null;          // { items, next, appendFn, scrollFn, gen }
+
+  /* ── 表示追従スクロール（タイプ中に下の行が隠れないように）── */
+  function keepInView(el) {
+    var sc = document.getElementById('story');
+    if (!sc || !el) return;
+    var scRect = sc.getBoundingClientRect();
+    var elRect = el.getBoundingClientRect();
+    var overflow = elRect.bottom - scRect.bottom;
+    if (overflow > 0) { sc.scrollTop += overflow + 24; }
+  }
+
+  /* ── タイプライター（HTML対応・世代チェック付き）── */
+  function typewriter(el, delay, gen, onDone) {
+    var html = el.innerHTML;            // 全文を退避
+    el.classList.remove('tw-pending');  // 表示を有効化
+    el.innerHTML = '';
+    var i = 0, disp = '';
+    _typeFinish = function() {
+      el.innerHTML = html;
+      _typeFinish = null;
+      if (_typeTimer) { clearTimeout(_typeTimer); _typeTimer = null; }
+    };
+    function step() {
+      if (gen !== _gen) { el.innerHTML = html; _typeFinish = null; return; }
+      if (i >= html.length) {
+        el.innerHTML = html; _typeFinish = null;
+        keepInView(el);
+        if (onDone) onDone();
+        return;
+      }
+      if (html[i] === '<') {
+        var ci = html.indexOf('>', i);
+        if (ci !== -1) {
+          disp += html.substring(i, ci + 1); i = ci + 1;
+          el.innerHTML = disp;
+          _typeTimer = setTimeout(step, 0); return;
+        }
+      }
+      if (html[i] === '&') {
+        var si = html.indexOf(';', i);
+        if (si !== -1 && si - i <= 8) {
+          disp += html.substring(i, si + 1); i = si + 1;
+          el.innerHTML = disp;
+          _typeTimer = setTimeout(step, delay); return;
+        }
+      }
+      disp += html[i]; i++;
+      el.innerHTML = disp;
+      if (i % 2 === 0) playBlip();
+      if (i % 4 === 0) keepInView(el);   // 数文字ごとに下行を追従表示
+      _typeTimer = setTimeout(step, delay);
+    }
+    step();
+  }
+
+  /* ── 複数ターゲットを順番にタイプ ────────── */
+  function typeTargets(targets, idx, gen, onDone) {
+    if (gen !== _gen) return;
+    if (idx >= targets.length) { if (onDone) onDone(); return; }
+    typewriter(targets[idx], 22, gen, function() {
+      typeTargets(targets, idx + 1, gen, onDone);
+    });
+  }
+
+  /* ── パネル分類（話者・タイプ対象を判定）── */
+  function classify(div, itemType) {
+    var txt = div.textContent || '';
+    /* IPO先生に相談（相談パネル）→ IPO先生（teacher） */
+    if (div.querySelector('.advisor-chat')) {
+      return { mode: 'type', speaker: 'teacher', sel: '.adv-context, .adv-ipo-tip' };
+    }
+    /* 株主・投資家の反応 → 投資家アバター */
+    if (itemType === 'investor_panel') {
+      return { mode: 'type', speaker: 'investor_a', sel: '.panel-body' };
+    }
+    /* IPO顧問が説明する結果パネル（監査契約締結 等）*/
+    if (itemType === 'advisor_panel') {
+      return { mode: 'type', speaker: 'advisor', sel: '.panel-body' };
+    }
+    /* 💣 過去の決断の代償（爆弾）→ IPO顧問 */
+    if (itemType === 'bomb') {
+      return { mode: 'type', speaker: 'advisor', sel: '.bomb-text' };
+    }
+    /* イベント説明（社長へのご報告 / 突発 / 重要イベント）*/
+    if (itemType === 'event_panel') {
+      var sp2 = 'advisor';
+      /* CFOからの報告 → CFO（ただし「CFO採用」イベントは採用前なのでIPO顧問）*/
+      if (txt.indexOf('CFO') !== -1 && txt.indexOf('採用') === -1) {
+        sp2 = 'cfo';
+      /* 主幹事証券会社からの報告 → 主幹事担当者（選定イベントは選定前なのでIPO顧問）*/
+      } else if (txt.indexOf('主幹事') !== -1
+                 && txt.indexOf('選定') === -1 && txt.indexOf('選択') === -1) {
+        sp2 = 'underwriter';
+      }
+      return { mode: 'type', speaker: sp2, sel: '.panel-body' };
+    }
+    /* Geminiナラティブ（状況・回想・総会後の社長室）*/
+    if (div.querySelector('.ain-body')) {
+      var h = (div.querySelector('.ain-header') || {}).textContent || '';
+      var sp = 'advisor';
+      if      (h.indexOf('創業の回想')    !== -1) sp = 'ceo';
+      else if (h.indexOf('総会後の社長室') !== -1) sp = 'ceo';
+      else if (h.indexOf('今期の状況')    !== -1) sp = 'advisor';
+      return { mode: 'type', speaker: sp, sel: '.ain-body' };
+    }
+    /* 前Q意思決定の結果報告（.do-text あり）→ IPO顧問＋1文字表示 */
+    if (div.querySelector('.do-text')) {
+      return { mode: 'type', speaker: 'advisor', sel: '.do-text' };
+    }
+    /* その他の結果報告（AGM議決結果本体）・その後の展開 → IPO顧問（即時・吹き出し）*/
+    if (div.querySelector('.deferred-outcome') || div.querySelector('.aid-body')) {
+      return { mode: 'chat-instant', speaker: 'advisor' };
+    }
+    /* それ以外（決算・スロット・ルーレット等）はアバターなし */
+    return { mode: 'instant' };
+  }
+
+  /* ── 前バッチの残りを即時表示（フラッシュ）── */
+  function flushPending() {
+    if (!_pending) return;
+    if (_typeFinish) _typeFinish();   // 進行中タイプを即完了
+    var p = _pending;
+    for (var j = p.next; j < p.items.length; j++) {
+      p.appendFn(p.items[j].html, p.items[j].type);
+    }
+    _pending = null;
+    /* タイプ待ちで隠れていた要素を全て表示に戻す */
+    Array.prototype.forEach.call(
+      document.querySelectorAll('.tw-pending'),
+      function(x) { x.classList.remove('tw-pending'); }
+    );
+    hideNow();
+  }
+
+  /* ── 1パネルずつ表示するメインループ ────── */
+  function step(gen) {
+    if (!_pending || gen !== _gen) return;
+    var p = _pending;
+    if (p.next >= p.items.length) { _pending = null; hidePanel(3500); return; }
+
+    var item = p.items[p.next];
+    p.next++;
+    var el = p.appendFn(item.html, item.type);
+    if (el && p.scrollFn) p.scrollFn(el);
+    if (!el) { step(gen); return; }   // 制御シグナル（reveal_hints等）
+
+    var c = classify(el, item.type);
+    var isSlot     = (item.type === 'quarterly_slot');
+    var isRoulette = !!el.querySelector('.roulette-disk');
+
+    if (c.mode === 'type') {
+      setSpeaker(c.speaker);
+      showPanel();
+      decorateBubble(el, c.speaker);     // 吹き出し化＋話者名バッジ
+      var targets = Array.prototype.slice
+        .call(el.querySelectorAll(c.sel))
+        .filter(function(x) { return x.innerHTML.trim().length > 0; });
+      if (targets.length === 0) {
+        hideNow();
+        _typeTimer = setTimeout(function() { step(gen); }, 320);
+        return;
+      }
+      /* 全ターゲットを先に非表示化（タイプ前の事前表示を防ぐ）*/
+      targets.forEach(function(x) { x.classList.add('tw-pending'); });
+      startMouth();
+      typeTargets(targets, 0, gen, function() {
+        stopMouth();
+        hidePanel(3500);
+        _typeTimer = setTimeout(function() { step(gen); }, 340);
+      });
+    } else if (c.mode === 'chat-instant') {
+      /* 結果報告など：IPO顧問の発言として吹き出し表示（即時・タイプなし）*/
+      setSpeaker(c.speaker);
+      showPanel();
+      decorateBubble(el, c.speaker);
+      _typeTimer = setTimeout(function() { step(gen); }, 900);
+    } else if (isRoulette) {
+      hideNow();
+      _typeTimer = setTimeout(function() { step(gen); }, 5000);  // 回転(4.2s)+結果表示を待つ
+    } else if (isSlot) {
+      hideNow();
+      _typeTimer = setTimeout(function() { step(gen); }, 2600);
+    } else {
+      hideNow();
+      _typeTimer = setTimeout(function() { step(gen); }, 360);
+    }
+  }
+
+  /* ── 吹き出し化：内側カードに話者ヘッダー（顔＋名前）を付与 ── */
+  function decorateBubble(el, speakerKey) {
+    var card = el.querySelector('.advisor-chat, .ai-narrative, .story-panel, .deferred-outcome, .ai-drama');
+    if (!card) card = el;
+    card.classList.add('bubble-active');
+    if (!card.querySelector('.chat-speaker')) {
+      var sp = SPEAKERS[speakerKey] || SPEAKERS['advisor'];
+      var head = document.createElement('div');
+      head.className = 'chat-speaker';
+      head.innerHTML =
+        '<img class="chat-speaker-ava" src="' + sp.normal + '" alt="">' +
+        '<span class="chat-speaker-name">' + sp.name + '</span>' +
+        '<span class="chat-speaker-role">' + sp.role + '</span>';
+      card.insertBefore(head, card.firstChild);
+    }
+  }
+
+  /* ── バッチ表示開始（外部エントリ）──────── */
+  function revealBatch(items, appendFn, scrollFn) {
+    if (!panelEl) init();
+    flushPending();                    // 前バッチの残りを即時表示
+    _gen++;
+    var gen = _gen;
+    _pending = { items: items, next: 0, appendFn: appendFn, scrollFn: scrollFn, gen: gen };
+    step(gen);
+  }
+
+  /* ── 外部公開 API ─────────────────────── */
+  window.AvatarSystem = {
+    revealBatch : revealBatch,
+    setSpeaker  : setSpeaker,
+    showPanel   : showPanel,
+    hidePanel   : hidePanel,
+    startMouth  : startMouth,
+    stopMouth   : stopMouth,
+    /* 将来拡張 */
+    // playVoice : function(url) { ... },
+    // setEmotion: function(key) { ... },
+  };
+
+  document.addEventListener('DOMContentLoaded', init);
 })();
 </script>
 </body>

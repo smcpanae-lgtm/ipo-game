@@ -2235,8 +2235,8 @@ def create_agm_event(company: Company, n_period: int) -> "GameEvent":
             else:
                 c.investor_trust = max(0, c.investor_trust - 6)
                 res.append("  🗳 特別決議【否決】 ▶ 投資家信頼-6（希薄化懸念で2/3未達）")
-            _secondary(c, res)
             _od_vote_in_agm(c, res)
+            _secondary(c, res)
             res.append(f"\n━━━ {plabel} 定時株主総会 閉会 ━━━")
             return "\n".join(res)
 
@@ -2286,8 +2286,8 @@ def create_agm_event(company: Company, n_period: int) -> "GameEvent":
                 res.append("  🗳 賛成多数【可決】 ▶ ガバナンス+6")
             else:
                 res.append("  🗳 反対多数【否決】（継続審議へ）")
-            _secondary(c, res)
             _od_vote_in_agm(c, res)
+            _secondary(c, res)
             res.append(f"\n━━━ {plabel} 定時株主総会 閉会 ━━━")
             return "\n".join(res)
 
@@ -2308,8 +2308,8 @@ def create_agm_event(company: Company, n_period: int) -> "GameEvent":
                 res.append(f"  🗳  反対多数で【否決】（賛成率{int(pp*100)}%に届かず）\n"
                            "  ❌ 「実効性が不明確」として否決されました。\n"
                            "  ▶ ガバナンス-2")
-            _secondary(c, res)
             _od_vote_in_agm(c, res)
+            _secondary(c, res)
             res.append(f"\n━━━ {plabel} 定時株主総会 閉会 ━━━")
             return "\n".join(res)
 
@@ -2370,8 +2370,8 @@ def create_agm_event(company: Company, n_period: int) -> "GameEvent":
             else:
                 c.investor_trust = max(0, c.investor_trust - 10)
                 res.append("  🗳 【否決】 ▶ 投資家信頼-10（希薄化反対）")
-            _secondary(c, res)
             _od_vote_in_agm(c, res)
+            _secondary(c, res)
             res.append(f"\n━━━ {plabel} 定時株主総会 閉会 ━━━")
             return "\n".join(res)
 
@@ -2399,8 +2399,8 @@ def create_agm_event(company: Company, n_period: int) -> "GameEvent":
                 res.append("  🗳 【可決】 ▶ ガバナンス+10")
             else:
                 res.append("  🗳 【否決】（次期再提案へ）")
-            _secondary(c, res)
             _od_vote_in_agm(c, res)
+            _secondary(c, res)
             res.append(f"\n━━━ {plabel} 定時株主総会 閉会 ━━━")
             return "\n".join(res)
 
@@ -2421,8 +2421,8 @@ def create_agm_event(company: Company, n_period: int) -> "GameEvent":
                 res.append(f"  🗳  反対多数で【否決】（賛成率{int(pp*100)}%に届かず）\n"
                            "  ❌ 費用対効果への懸念で否決されました。\n"
                            "  ▶ 内部統制-3")
-            _secondary(c, res)
             _od_vote_in_agm(c, res)
+            _secondary(c, res)
             res.append(f"\n━━━ {plabel} 定時株主総会 閉会 ━━━")
             return "\n".join(res)
 
@@ -2485,8 +2485,8 @@ def create_agm_event(company: Company, n_period: int) -> "GameEvent":
             else:
                 c.governance_score = max(0, c.governance_score - 3)
                 res.append("  🗳 【否決】 ▶ ガバナンス-3（役員増員コストへの反発）")
-            _secondary(c, res)
             _od_vote_in_agm(c, res)
+            _secondary(c, res)
             res.append(f"\n━━━ {plabel} 定時株主総会 閉会 ━━━")
             return "\n".join(res)
 
@@ -2516,8 +2516,8 @@ def create_agm_event(company: Company, n_period: int) -> "GameEvent":
                 res.append("  🗳 【可決】 ▶ 内部統制+7")
             else:
                 res.append("  🗳 【否決】（予算削減方針）")
-            _secondary(c, res)
             _od_vote_in_agm(c, res)
+            _secondary(c, res)
             res.append(f"\n━━━ {plabel} 定時株主総会 閉会 ━━━")
             return "\n".join(res)
 
@@ -2539,8 +2539,8 @@ def create_agm_event(company: Company, n_period: int) -> "GameEvent":
                 res.append(f"  🗳  反対多数で【否決】（賛成率{int(pp*100)}%に届かず）\n"
                            "  ❌ 「体制構築コストが高い」として否決されました。\n"
                            "  ▶ コンプラ-3")
-            _secondary(c, res)
             _od_vote_in_agm(c, res)
+            _secondary(c, res)
             res.append(f"\n━━━ {plabel} 定時株主総会 閉会 ━━━")
             return "\n".join(res)
 
@@ -2599,8 +2599,8 @@ def create_agm_event(company: Company, n_period: int) -> "GameEvent":
                            "  ❌ 一部株主が準備不足を指摘し異論が生じました。\n"
                            "  ▶ 投資家信頼-15・リスク+8\n"
                            "  💬 主幹事証券：「審査前に懸念株主への追加説明が必要です。」")
-            _secondary(c, res)
             _od_vote_in_agm(c, res)
+            _secondary(c, res)
             res.append(f"\n━━━ {plabel} 定時株主総会 閉会 ━━━")
             return "\n".join(res)
 
@@ -2622,8 +2622,8 @@ def create_agm_event(company: Company, n_period: int) -> "GameEvent":
                 res.append(f"  🗳  反対多数で【否決】（賛成率{int(pp*100)}%に届かず）\n"
                            "  ❌ 準備不足を指摘する声が多数を占めました。\n"
                            "  ▶ 投資家信頼-18・リスク+12（上場スケジュール再検討が必要）")
-            _secondary(c, res)
             _od_vote_in_agm(c, res)
+            _secondary(c, res)
             res.append(f"\n━━━ {plabel} 定時株主総会 閉会 ━━━")
             return "\n".join(res)
 
@@ -2646,8 +2646,8 @@ def create_agm_event(company: Company, n_period: int) -> "GameEvent":
                 res.append(f"  🗳  反対票あり（賛成率{int(pp*100)}%に届かず）\n"
                            "  ❌ 慎重な姿勢が「準備不足のシグナル」と受け取られました。\n"
                            "  ▶ 投資家信頼-10（決断力不足との批判）")
-            _secondary(c, res)
             _od_vote_in_agm(c, res)
+            _secondary(c, res)
             res.append(f"\n━━━ {plabel} 定時株主総会 閉会 ━━━")
             return "\n".join(res)
 

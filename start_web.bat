@@ -13,12 +13,13 @@ if not exist C:\ipo_venv\Scripts\python.exe (
 )
 C:\ipo_venv\Scripts\pip.exe install rich flask google-genai dill --quiet
 
-:: ★ ここにあなたのGemini APIキーを貼り付けてください ★
-set GEMINI_API_KEY=AIzaSyDGx8EGSCaubClwUN1_uM5aI-W71MhU9bA
+:: ── Gemini APIキーは gemini_api_key.txt から読み込みます ──
+::   （このファイルは .gitignore 済み＝GitHubに公開されません）
+::   AIナラティブを使うには C:\ipo_game\gemini_api_key.txt に
+::   キーを1行で記入してください。未設定ならルールベースで動作します。
 echo.
-echo  ── Gemini AI ナラティブ設定（任意）──────────────────────
-echo  AIナラティブを有効化するには：
-echo  set GEMINI_API_KEY=あなたのAPIキー
+echo  ── Gemini AI ナラティブ設定 ──────────────────────────────
+echo  AIを使う場合: gemini_api_key.txt にAPIキーを1行で記入
 echo  （Google AI Studio https://aistudio.google.com/ で無料取得）
 echo  未設定の場合はルールベースナラティブで動作します
 echo  ────────────────────────────────────────────────────────
@@ -29,5 +30,5 @@ echo    http://127.0.0.1:5000 が自動的に開きます
 echo    終了するには このウィンドウを閉じてください
 echo  ====================================================
 echo.
-C:\ipo_venv\Scripts\python.exe web_game.py
+C:\ipo_venv\Scripts\python.exe "C:\ipo_game\web_game.py"
 pause
