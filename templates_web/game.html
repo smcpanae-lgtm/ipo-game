@@ -280,6 +280,91 @@ body:has(.title-screen) #scene-bg { display: none; }
 }
 
 /* ════════════════════════════════════════════
+   🗺 ワールドマップ（すごろく盤面・全画面）
+════════════════════════════════════════════ */
+.map-move { display: none; }   /* サーバーからの移動指示タグは非表示 */
+#worldmap-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: #06101f;
+}
+#worldmap-overlay.wm-show { display: flex; animation: wmFade .45s ease; }
+@keyframes wmFade { from { opacity: 0; } to { opacity: 1; } }
+#wm-frame {
+  position: relative;
+  aspect-ratio: 1672 / 941;
+  width: 100vw;
+  max-width: calc(100vh * 1.7768);
+  max-height: 100vh;
+  background: url('/static/bg_worldmap.jpg') center / cover no-repeat;
+}
+/* コマ（社長チビキャラ）*/
+#wm-piece {
+  position: absolute;
+  width: 8.5%;
+  transform: translate(-50%, -92%);
+  filter: drop-shadow(0 6px 8px rgba(0,0,0,.45));
+  will-change: left, top;
+}
+/* 現在地リング（足元の光輪）*/
+#wm-ring {
+  position: absolute;
+  width: 5.5%;
+  aspect-ratio: 2.2 / 1;
+  transform: translate(-50%, -50%);
+  border: 3px solid rgba(0,229,255,.85);
+  border-radius: 50%;
+  box-shadow: 0 0 18px rgba(0,229,255,.6);
+  animation: wmRing 1.4s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes wmRing {
+  0%, 100% { opacity: .9; }
+  50%      { opacity: .3; }
+}
+/* ラベル帯（上部中央）*/
+#wm-label {
+  position: absolute;
+  top: 5%;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  padding: 10px 48px;
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: #fff;
+  text-shadow: 0 0 16px rgba(0,229,255,.8), 0 2px 6px rgba(0,0,0,.9);
+  background: linear-gradient(90deg, transparent 0%, rgba(8,30,66,.88) 15%, rgba(8,30,66,.88) 85%, transparent 100%);
+  border-top: 1px solid rgba(255,215,0,.55);
+  border-bottom: 1px solid rgba(255,215,0,.55);
+}
+/* 転落時：赤いビネット＋画面シェイク */
+#worldmap-overlay.wm-fall #wm-frame { animation: wmShake .5s ease-in-out 2; }
+#worldmap-overlay.wm-fall::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(200,0,0,.38) 100%);
+}
+@keyframes wmShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-10px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(4px); }
+}
+/* ゴール時：コマの周囲に金色の光 */
+#wm-piece.wm-glory {
+  filter: drop-shadow(0 0 24px rgba(255,215,0,.95)) drop-shadow(0 6px 8px rgba(0,0,0,.45));
+}
+
+/* ════════════════════════════════════════════
    🔨 意思決定ガベル演出（裁判官が小槌を2回打つ）
 ════════════════════════════════════════════ */
 #gavel-overlay {
@@ -1900,6 +1985,14 @@ body:has(.title-screen) #scene-bg { display: none; }
 </div>
 <!-- シーン転換バナー -->
 <div id="scene-banner"><span class="banner-inner"></span></div>
+<!-- 🗺 ワールドマップ（すごろく盤面）-->
+<div id="worldmap-overlay">
+  <div id="wm-frame">
+    <div id="wm-ring"></div>
+    <img id="wm-piece" src="/static/piece_idle.png" alt="player">
+    <div id="wm-label"></div>
+  </div>
+</div>
 <!-- 🔨 意思決定ガベル演出 -->
 <div id="gavel-overlay">
   <div class="gavel-stage">
@@ -2051,6 +2144,149 @@ body:has(.title-screen) #scene-bg { display: none; }
   }
 
   window.SceneSystem = { setScene: setScene, update: update };
+})();
+</script>
+
+<script>
+/* ════════════════════════════════════════════
+   🗺 WorldMap：すごろく盤面のコマ移動演出
+   サーバーが <div class="map-move" data-from data-to data-fall
+   data-goal data-intro data-label> を送出し、逐次表示エンジンが
+   WorldMap.play(dataset, onDone) を呼ぶ。
+════════════════════════════════════════════ */
+(function () {
+  'use strict';
+
+  /* マス座標（盤面イラスト 1672x941 に対する % 位置）
+     0=スタート(麓のビル前) … 25=山頂直下, 26=ゴール(神殿・鐘) */
+  var TILES = [
+    [17.8, 93.3], [26.2, 92.3], [33.2, 91.0], [40.6, 90.9], [48.9, 89.2],
+    [55.9, 87.4], [61.8, 85.3], [67.3, 82.9], [71.3, 79.2], [68.7, 74.0],
+    [62.9, 71.8], [57.9, 69.4], [54.4, 64.8], [53.1, 58.3], [59.4, 54.7],
+    [65.3, 52.1], [72.3, 52.1], [79.5, 49.0], [82.7, 43.4], [79.5, 38.6],
+    [73.5, 35.9], [69.4, 32.1], [71.5, 26.2], [77.5, 23.7], [82.9, 23.6],
+    [87.5, 22.3], [89.5, 10.6]
+  ];
+  var IMG = {
+    idle: '/static/piece_idle.png',
+    walk: '/static/piece_walk.png',
+    fall: '/static/piece_fall.png',
+    goal: '/static/piece_goal.png'
+  };
+  Object.keys(IMG).forEach(function (k) { var im = new Image(); im.src = IMG[k]; });
+
+  var ov = null, piece = null, ring = null, label = null;
+  var _timers = [];
+  var _done = null;
+
+  function init() {
+    ov    = document.getElementById('worldmap-overlay');
+    piece = document.getElementById('wm-piece');
+    ring  = document.getElementById('wm-ring');
+    label = document.getElementById('wm-label');
+  }
+
+  function clearTimers() {
+    _timers.forEach(clearTimeout);
+    _timers = [];
+  }
+
+  function place(el, idx, yOff) {
+    var t = TILES[Math.max(0, Math.min(TILES.length - 1, idx))];
+    el.style.left = t[0] + '%';
+    el.style.top  = (t[1] + (yOff || 0)) + '%';
+  }
+
+  /* バッチ破棄時（連打など）に演出を即時中断する */
+  function cancel() {
+    clearTimers();
+    _done = null;
+    if (ov) ov.classList.remove('wm-show', 'wm-fall');
+    if (piece) piece.classList.remove('wm-glory');
+  }
+
+  function play(ds, done) {
+    if (!ov) init();
+    if (!ov || !piece) { done(); return; }
+    clearTimers();
+    _done = done;
+
+    var from  = parseInt(ds.from, 10) || 0;
+    var to    = parseInt(ds.to, 10) || 0;
+    var fall  = ds.fall === '1';
+    var goal  = ds.goal === '1';
+    var intro = ds.intro === '1';
+
+    ov.classList.add('wm-show');
+    ov.classList.toggle('wm-fall', fall);
+    piece.classList.remove('wm-glory');
+    label.textContent = ds.label || '';
+
+    /* 初期位置へ瞬間移動 */
+    piece.style.transition = 'none';
+    piece.style.transform  = 'translate(-50%, -92%)';
+    piece.src = fall ? IMG.fall : IMG.idle;
+    place(piece, from);
+    place(ring, from, 0.6);
+    void piece.offsetWidth;
+
+    var hop = fall ? 380 : 560;
+    piece.style.transition = 'left ' + hop + 'ms ease-in-out, top ' + hop + 'ms ease-in-out';
+    ring.style.transition  = piece.style.transition;
+
+    function finish(wait) {
+      _timers.push(setTimeout(function () {
+        ov.classList.remove('wm-show', 'wm-fall');
+        piece.classList.remove('wm-glory');
+        var d = _done; _done = null;
+        if (d) d();
+      }, wait));
+    }
+
+    /* 開幕（移動なし）：現在地を見せるだけ */
+    var seq = [];
+    if (to > from)      { for (var i = from + 1; i <= to; i++) seq.push(i); }
+    else if (to < from) { for (var j = from - 1; j >= to; j--) seq.push(j); }
+    if (intro || seq.length === 0) { finish(2200); return; }
+
+    if (!fall) piece.src = IMG.walk;
+
+    var stepN = 0;
+    function hopNext() {
+      if (stepN >= seq.length) { arrive(); return; }
+      var idx  = seq[stepN];
+      var prev = (stepN === 0) ? from : seq[stepN - 1];
+      /* 左へ進む時はキャラを反転 */
+      piece.style.transform = 'translate(-50%, -92%)' +
+        ((TILES[idx][0] < TILES[prev][0]) ? ' scaleX(-1)' : '');
+      place(piece, idx);
+      place(ring, idx, 0.6);
+      if (window._slotSfx) window._slotSfx.reelStop(fall);
+      stepN++;
+      _timers.push(setTimeout(hopNext, hop + 90));
+    }
+
+    function arrive() {
+      piece.style.transform = 'translate(-50%, -92%)';
+      if (goal) {
+        piece.src = IMG.goal;
+        piece.classList.add('wm-glory');
+        if (window._slotSfx) window._slotSfx.fanfare();
+        finish(2600);
+      } else if (fall) {
+        piece.src = IMG.fall;
+        finish(1400);
+      } else {
+        piece.src = IMG.idle;
+        finish(950);
+      }
+    }
+
+    /* 盤面を一拍見せてから歩き出す */
+    _timers.push(setTimeout(hopNext, 650));
+  }
+
+  window.WorldMap = { play: play, cancel: cancel };
 })();
 </script>
 
@@ -3863,6 +4099,7 @@ body:has(.title-screen) #scene-bg { display: none; }
 
   /* ── 前バッチの残りを即時表示（フラッシュ）── */
   function flushPending() {
+    if (window.WorldMap) window.WorldMap.cancel();   // 🗺 マップ演出を中断
     if (!_pending) return;
     if (_typeFinish) _typeFinish();   // 進行中タイプを即完了
     var p = _pending;
@@ -3889,6 +4126,20 @@ body:has(.title-screen) #scene-bg { display: none; }
     var el = p.appendFn(item.html, item.type);
     if (el && p.scrollFn) p.scrollFn(el);
     if (!el) { step(gen); return; }   // 制御シグナル（reveal_hints等）
+
+    /* 🗺 ワールドマップ移動：全画面マップでコマを動かしてから次へ */
+    if (item.type === 'map_move') {
+      var mv = el.querySelector('.map-move');
+      hideNow();
+      if (window.WorldMap && mv) {
+        window.WorldMap.play(mv.dataset, function () {
+          if (gen === _gen) step(gen);
+        });
+      } else {
+        _typeTimer = setTimeout(function () { step(gen); }, 60);
+      }
+      return;
+    }
 
     var c = classify(el, item.type);
     var isSlot     = (item.type === 'quarterly_slot');

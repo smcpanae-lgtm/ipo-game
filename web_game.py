@@ -593,6 +593,24 @@ def esc(text) -> str:
     return html_module.escape(str(text))
 
 
+# ──────────────────────────────────────────
+# 🗺 ワールドマップ（すごろく盤面）
+#   16ターン（4期×4Q）を26マスに割り付け、各四半期開始時にコマを進める。
+#   マス26はゴール（山頂の鐘）。座標はフロント側（game.html）が保持する。
+# ──────────────────────────────────────────
+MAP_GOAL_TILE = 26
+MAP_TILE_FOR_TURN = [0, 2, 3, 5, 7, 8, 10, 12, 13, 15, 17, 18, 20, 22, 23, 25]
+
+
+def map_move_html(from_tile: int, to_tile: int, label: str = "",
+                  fall: bool = False, goal: bool = False, intro: bool = False) -> str:
+    return (
+        f'<div class="map-move" data-from="{from_tile}" data-to="{to_tile}"'
+        f' data-fall="{1 if fall else 0}" data-goal="{1 if goal else 0}"'
+        f' data-intro="{1 if intro else 0}" data-label="{esc(label)}"></div>'
+    )
+
+
 def story_panel(body: str, title: str = "", cls: str = "gold") -> str:
     title_html = f'<div class="panel-title">{title}</div>' if title else ""
     return f'<div class="story-panel {cls}">{title_html}<div class="panel-body">{body}</div></div>'
@@ -1853,6 +1871,21 @@ class GameSession:
             self._add(story_panel(body, "📋 定款変更 登記完了", "cyan"))
             self._score_change_reasons.append("📄 定款変更登記完了：コンプラ+8")
 
+    def _map_fall(self, steps: int = 1, label: str = "⚠ 転落！"):
+        """🗺 ワールドマップ：コマを後退させる（悪い出来事の演出）"""
+        cur = getattr(self, "_map_pos", 0)
+        to = max(0, cur - steps)
+        if to == cur:
+            return
+        self._map_pos = to
+        self._add(map_move_html(cur, to, label, fall=True), "map_move")
+
+    def _map_goal(self):
+        """🗺 ワールドマップ：山頂の鐘へ（上場成功）"""
+        cur = getattr(self, "_map_pos", 0)
+        self._map_pos = MAP_GOAL_TILE
+        self._add(map_move_html(cur, MAP_GOAL_TILE, "🔔 登頂 — 上場達成！", goal=True), "map_move")
+
     def _begin_turn(self):
         c = self.company
         t = self.timeline
@@ -1870,6 +1903,18 @@ class GameSession:
             ))
             self._run_audit_roulette()
             return
+
+        # ── 🗺 ワールドマップ：今四半期のマスへコマを進める ──
+        _tidx = (t.n_period + 3) * 4 + (t.quarter - 1)
+        if 0 <= _tidx < len(MAP_TILE_FOR_TURN):
+            _target = MAP_TILE_FOR_TURN[_tidx]
+            _cur = getattr(self, "_map_pos", 0)
+            if _tidx == 0:
+                self._map_pos = 0
+                self._add(map_move_html(0, 0, f"{t.full_label()} — 栄光への旅、開幕", intro=True), "map_move")
+            elif _target > _cur:
+                self._add(map_move_html(_cur, _target, f"{t.full_label()} へ出発！"), "map_move")
+                self._map_pos = _target
 
         # ─ 従業員持株会：毎Q+3名の実株主が積み上がる ─
         if getattr(c, 'has_esop', False):
@@ -2889,6 +2934,8 @@ class GameSession:
             )
             for bomb_msg in _bomb_messages:
                 self._add(bomb_html(bomb_msg), "bomb")
+            # 🗺 過去の代償でコマが滑落（爆弾1個=1マス、複数なら2マス）
+            self._map_fall(1 if len(_bomb_messages) == 1 else 2, "💣 過去の代償 — 滑落！")
 
         # ─ 📊 四半期決算レポート 表示（爆弾効果込みのスコア差分を反映） ─
         self._render_quarter_closing_report(
@@ -3681,6 +3728,8 @@ class GameSession:
 
         # 延期演出
         self._add("", "ipo_failure_sound")
+        # 🗺 マクロショックで大きく滑落
+        self._map_fall(4, f"⚠ {shock_name} — 大滑落！")
         self._add(story_panel(
             f"<strong>{esc(shock_name)}</strong>の影響を受け、上場を1年延期する決断を下しました。<br><br>"
             f"主幹事証券担当者：「市場環境を考えれば賢明なご判断です。<br>"
@@ -3822,6 +3871,11 @@ class GameSession:
     def _show_ending(self, ending_type: str, issues: list):
         _delete_save()   # ゲーム終了時はセーブデータを削除
         c = self.company
+        # 🗺 ワールドマップ：成功なら山頂の鐘へ、失敗なら大きく滑落
+        if ending_type == "success":
+            self._map_goal()
+        else:
+            self._map_fall(3, "⚠ 上場ならず — 滑落…")
         if ending_type == "success":
             # ─ 詳細な成功ストーリーパネル（花火・音楽は _run_tse_verdict 側で発火済み）─
             mkt_labels = {"growth": "グロース市場", "standard": "スタンダード市場", "prime": "プライム市場"}
