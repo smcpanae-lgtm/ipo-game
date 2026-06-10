@@ -190,6 +190,16 @@ class Company:
     outside_director_rejected_needs_eogm: bool = False  # 社外役員選任否決→臨時株主総会要（会社法297条）
     articles_amendment_rejected_needs_eogm: bool = False  # 定款変更否決→臨時株主総会で再上程要（会社法466条）
 
+    # ── ⚔🛡 攻守トレードオフ（第1弾） ──
+    growth_temp_mods: List[list] = field(default_factory=list)  # [Δ成長率(小数), 残りQ数] のリスト
+    growth_perm_delta: float = 0.0       # 恒久的な成長率の増減（小数）
+    offense_score: int = 0               # ⚔ 攻め度（成長系の選択の累積）
+    defense_score: int = 0               # 🛡 守り度（統制系の選択の累積）
+
+    # ── 📈 IPOウィンドウ（市況指数 0〜100） ──
+    market_index: float = 55.0           # 現在の市況
+    market_momentum: float = 0.0         # 直近の変化（モメンタム）
+
     # フラグ
     flags: Flags = field(default_factory=Flags)
 

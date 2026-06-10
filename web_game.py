@@ -23,6 +23,8 @@ from engine.finance import (
     advance_quarter_financials,
     check_cash_crisis,
     BUSINESS_PARAMS,
+    market_multiplier,
+    effective_growth_rate,
 )
 from engine.roulette import tick_bombs, audit_contract_roulette, roll
 from scenario.ipo_knowledge import get_available_events, get_fresh_events, shareholder_meeting_event, create_agm_event
@@ -1000,6 +1002,8 @@ class GameSession:
                 self._show_fortune_event()
             elif self._next_action == "tse_verdict":
                 self._run_tse_verdict()
+            elif self._next_action == "tse_exam":
+                self._run_tse_exam()
 
         elif self.phase == Phase.EVENT_CHOICE:
             if value == "__ADVISOR__":
@@ -2476,6 +2480,11 @@ class GameSession:
             c = self.company
             t = self.timeline
             advance_quarter_financials(c, t.n_period, t.quarter)
+            # 📊 IPOウィンドウ：弱気市況なら申請タイミングの判断を迫る（1回まで）
+            if (getattr(c, "market_index", 55.0) < 35.0
+                    and not getattr(self, "_ipo_window_deferred", False)):
+                self._offer_ipo_window_choice()
+                return
             self._run_tse_exam()
             return
 
@@ -3293,8 +3302,10 @@ class GameSession:
             result_msg = f"（処理完了）{repr(result_msg)}"
         self._add(result_html(result_msg, True))
         self.phase = Phase.CONTINUE
-        self._next_action = "begin_turn"
-        self._ph("► Enter で次のターンへ...")
+        # ALT選択後の遷移先（既定: 次ターン。IPOウィンドウ判断後は審査へ等）
+        self._next_action = getattr(self, "_alt_next_action", "") or "begin_turn"
+        self._alt_next_action = ""
+        self._ph("► Enter で次へ...")
 
     def _emergency_ctrl(self, company: Company) -> str:
         company.cash -= 20.0
@@ -3394,6 +3405,67 @@ class GameSession:
             "   ・リスクスコア-10\n\n"
             "   ▶ 1年間の体制整備を経て、監査法人への再打診を行います。\n"
             "     次のターンで監査契約ルーレットに再挑戦します。"
+        )
+
+    # ──────────────────────────────────────────
+    # 📊 IPOウィンドウ：弱気市況での申請タイミング判断
+    # ──────────────────────────────────────────
+    def _offer_ipo_window_choice(self):
+        c = self.company
+        idx = getattr(c, "market_index", 55.0)
+        mult = market_multiplier(c)
+        self._add(story_panel(
+            f"主幹事担当者から緊急の連絡が入りました。<br><br>"
+            f"「社長、申し上げにくいのですが——<strong>市況が悪化しています</strong>。<br>"
+            f"現在の市況指数は <strong style='color:#ff4444'>{idx:.0f}（弱気）</strong>。"
+            f"時価総額評価は通常の<strong>×{mult:.2f}</strong>まで割り引かれています。<br><br>"
+            f"このまま申請すれば公開価格は大幅ディスカウント、<br>"
+            f"形式要件（流通株式時価総額）の充足も危うい水準です。<br><br>"
+            f"<strong>IPOウィンドウが閉じかけています。どうされますか？」</strong>",
+            "📉 緊急判断：IPOウィンドウの悪化", "red"
+        ), "event_panel")
+        self._alt_choices = [
+            Choice(
+                label="A. 予定通り申請を強行する",
+                description="ディスカウント覚悟で審査へ。市況がさらに悪化する前に勝負",
+                immediate_effect=lambda comp: (
+                    "🏃 予定通りの申請を決断しました。\n"
+                    "   「待っても良くなる保証はない。今の体制で勝負する。」\n"
+                    "   ▶ 現在の市況評価のまま上場審査に進みます。"
+                ),
+            ),
+            Choice(
+                label="B. 申請を3ヶ月延期し、市況回復を待つ（1四半期分の費用を消費）",
+                description="準備をさらに磨きつつ回復に賭ける。ただし市況がさらに沈む可能性も",
+                immediate_effect=lambda comp: self._defer_ipo_window(comp),
+            ),
+        ]
+        self._add(choices_html(self._alt_choices, "AB"))
+        self._alt_next_action = "tse_exam"
+        self.phase = Phase.ALT_CHOICE
+        self._ph("► 選択 (A / B)")
+
+    def _defer_ipo_window(self, c: Company) -> str:
+        from engine.finance import update_market_index
+        self._ipo_window_deferred = True
+        before = getattr(c, "market_index", 55.0)
+        # 3ヶ月分の資金燃焼と最終仕上げ
+        c.cash -= c.quarterly_burn * 0.5
+        c.internal_control_score = min(100, c.internal_control_score + 5)
+        c.accounting_quality     = min(100, c.accounting_quality + 5)
+        c.flags.total_risk_score = max(0, c.flags.total_risk_score - 3)
+        # 市況の再抽選（回復に賭ける——保証はない）
+        update_market_index(c)
+        after = getattr(c, "market_index", 55.0)
+        trend = "回復" if after > before else "さらに悪化"
+        # 新しい市況で時価総額を再評価
+        from engine.finance import _get_per_multiple
+        c.market_cap_million = c.revenue.recognized * _get_per_multiple(c) * market_multiplier(c)
+        return (
+            f"⏳ 申請を3ヶ月延期しました。（待機費用 ¥{c.quarterly_burn * 0.5:,.0f}M）\n\n"
+            f"   ・最終準備を磨き込み：内部統制+5 / 会計品質+5 / リスク-3\n"
+            f"   ・市況指数：{before:.0f} → {after:.0f}（{trend}）\n\n"
+            f"   ▶ これ以上の延期はできません。この市況で上場審査に臨みます。"
         )
 
     # ──────────────────────────────────────────
@@ -3508,7 +3580,16 @@ class GameSession:
         acct_html = check_section("第二審査②：会計・内部統制・開示", "yellow", acct_checks)
 
         # ③④⑤⑥⑦⑧⑨ 実質審査（事業・経営・組織・リスク）
+        # ③ 高い成長可能性（グロース市場の審査の核心）
+        # 守りの選択を重ねすぎて成長エンジンが弱った会社は、ここで足切りされる
+        _base_g = BUSINESS_PARAMS[c.business_type].get("growth_rate", 0.05)
+        _eff_g = effective_growth_rate(c)
+        _growth_req = _base_g * 0.65
         sub_checks = [
+            *([("📈 ③ 高い成長可能性（成長率の維持）",
+                _eff_g >= _growth_req,
+                f"実効成長率{_eff_g*100:.1f}%/Q — 業種水準{_base_g*100:.0f}%の65%（{_growth_req*100:.1f}%）が必要（③成長性）")]
+              if mkt == "growth" else []),
             ("📋 ③ 中期経営計画の策定",           c.has_mid_term_plan,                "中期経営計画が未策定（③事業継続性）"),
             ("💰 ③ 赤字でない / 事業継続性",       c.revenue.recognized >= c.quarterly_burn * 0.7,
              f"売上¥{c.revenue.recognized:.0f}M / 費用¥{c.quarterly_burn:.0f}M（③事業継続性）"),
@@ -5047,6 +5128,25 @@ class GameSession:
             *self._sidebar_finance_rows(c, t, net, netcol, netsign),
             f'<div class="sbr"><span>⏳ 資金持続</span><span style="color:{rwcol}">{"問題なし（黒字）" if rw >= 99 else (f"残り約{rw * 3}ヶ月" if rw >= 4 else f"⚠ 残り約{rw * 3}ヶ月！")}</span></div>',
             f'<div class="sbr"><span>🏢 時価総額</span><span style="color:#ffd700">¥{c.market_cap_million:,.0f}M</span></div>',
+            # 📈 実効成長率（攻守トレードオフ反映後）
+            (lambda _g=effective_growth_rate(c), _b=c.revenue.growth_rate:
+                f'<div class="sbr"><span>📈 成長率/Q</span>'
+                f'<span style="color:{"#00cc66" if _g >= _b else "#ff8844"}">{_g*100:.1f}%'
+                f'<span style="color:var(--dim);font-size:10px">（基礎{_b*100:.0f}%）</span></span></div>')(),
+            '<div class="sb-sec">── 市況・攻守 ────────</div>',
+            # 📊 市況メーター（IPOウィンドウ）
+            (lambda _mi=getattr(c, "market_index", 55.0):
+                f'<div class="sbr"><span>📊 市況</span>'
+                f'<span style="color:{"#00cc66" if _mi >= 65 else ("#ffcc00" if _mi >= 35 else "#ff4444")}">'
+                f'{"🐂強気" if _mi >= 65 else ("〜中立" if _mi >= 35 else "🐻弱気")} {_mi:.0f}'
+                f'<span style="color:var(--dim);font-size:10px">（評価×{market_multiplier(c):.2f}）</span></span></div>')(),
+            # ⚔🛡 攻守バランス
+            (lambda _o=getattr(c, "offense_score", 0), _d=getattr(c, "defense_score", 0):
+                f'<div class="sbr"><span>⚔ 攻め/守り 🛡</span>'
+                f'<span>{_o} <span style="color:var(--dim)">/</span> {_d}'
+                + (f' <span style="color:#ff8844;font-size:10px">⚠偏り</span>'
+                   if (_o + _d) >= 5 and abs(_o - _d) >= 4 else '')
+                + '</span></div>')(),
             '<div class="sb-sec">── スコア ───────────</div>',
             srow("内統",     min(100, max(0, c.internal_control_score))),
             srow("コンプラ",  min(100, max(0, c.compliance_score))),

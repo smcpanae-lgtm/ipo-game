@@ -61,17 +61,54 @@ def initialize_company(company: Company):
         company.flags.cash_basis_accounting = True  # SaaS/FintechはSaaS収益認識が複雑
 
 
+def market_multiplier(company: Company) -> float:
+    """📈 市況指数(0〜100)による時価総額の乗数。55でほぼ等倍。"""
+    idx = getattr(company, "market_index", 55.0)
+    return 0.70 + (idx / 100.0) * 0.60
+
+
+def update_market_index(company: Company):
+    """📈 市況のランダムウォーク（モメンタム付き：上げ/下げが続きやすい）"""
+    import random
+    idx = getattr(company, "market_index", 55.0)
+    mom = getattr(company, "market_momentum", 0.0)
+    delta = mom * 0.45 + random.uniform(-11.0, 11.0)
+    company.market_momentum = delta
+    company.market_index = min(95.0, max(5.0, idx + delta))
+
+
+def effective_growth_rate(company: Company) -> float:
+    """⚔🛡 トレードオフ修正後の実効成長率（基礎成長率＋恒久増減＋一時増減）"""
+    g = company.revenue.growth_rate
+    g += getattr(company, "growth_perm_delta", 0.0)
+    for mod in getattr(company, "growth_temp_mods", []):
+        g += mod[0]
+    return min(0.40, max(-0.05, g))
+
+
+def _tick_growth_mods(company: Company):
+    """一時的な成長率修正の残期間を1Q減らし、切れたものを除去"""
+    mods = getattr(company, "growth_temp_mods", [])
+    for mod in mods:
+        mod[1] -= 1
+    company.growth_temp_mods = [m for m in mods if m[1] > 0]
+
+
 def advance_quarter_financials(company: Company, n_period: int, quarter: int):
     """四半期財務処理"""
     params = BUSINESS_PARAMS[company.business_type]
 
-    # 売上成長
-    growth = company.revenue.growth_rate
+    # 📈 市況の変動（時価総額評価に影響）
+    update_market_index(company)
+
+    # 売上成長（⚔🛡 トレードオフ修正を反映）
+    growth = effective_growth_rate(company)
     # 内部統制スコアが低いと成長にペナルティ（不正確な数字）
     if company.accounting_quality < 30:
         growth *= 0.7
 
     company.revenue.recognized *= (1 + growth)
+    _tick_growth_mods(company)
 
     # 繰延収益の認識（SaaSの前受など）
     deferred_recognition = company.revenue.deferred * 0.25
@@ -87,8 +124,8 @@ def advance_quarter_financials(company: Company, n_period: int, quarter: int):
 
     company.cash += net_cash_flow
 
-    # 時価総額更新
-    new_mktcap = company.revenue.recognized * _get_per_multiple(company)
+    # 時価総額更新（📈 市況乗数を反映：弱気で割安評価、強気でプレミアム）
+    new_mktcap = company.revenue.recognized * _get_per_multiple(company) * market_multiplier(company)
     if n_period == -3 and quarter == 1:
         # N-3期Q1は開始直後のため、PER倍率差による過大変動を5%以内に抑制する
         old_mktcap = company.market_cap_million
