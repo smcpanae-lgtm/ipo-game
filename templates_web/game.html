@@ -306,27 +306,6 @@ body:has(.title-screen) #scene-bg { display: none; }
   font-size: 84px; line-height: 1;
   filter: drop-shadow(0 4px 12px rgba(0,0,0,.6));
 }
-/* 「静粛に！」吹き出し */
-.gavel-say {
-  position: absolute; left: 96px; top: 0;
-  background: #fff; color: #16335a;
-  font-size: 17px; font-weight: 700; letter-spacing: 2px;
-  padding: 7px 16px; border-radius: 14px;
-  box-shadow: 0 4px 14px rgba(0,0,0,.45);
-  animation: gavelSay 2.0s ease both;
-}
-.gavel-say::after {
-  content: ''; position: absolute; left: -10px; bottom: 8px;
-  border-top: 7px solid transparent; border-bottom: 7px solid transparent;
-  border-right: 12px solid #fff;
-}
-@keyframes gavelSay {
-  0%  { opacity: 0; transform: scale(.6); }
-  8%  { opacity: 1; transform: scale(1); }
-  55% { opacity: 1; }
-  70% { opacity: 0; }
-  100%{ opacity: 0; }
-}
 /* 小槌（トンカチ）：2回振り下ろす */
 .gavel-hammer {
   position: absolute; right: 64px; bottom: 84px;
@@ -1904,7 +1883,6 @@ body:has(.title-screen) #scene-bg { display: none; }
 <div id="gavel-overlay">
   <div class="gavel-stage">
     <div class="gavel-judge">🧑‍⚖️</div>
-    <div class="gavel-say">静粛に！</div>
     <div class="gavel-base"></div>
     <div class="gavel-hammer">🔨</div>
     <div class="gavel-impact">✦</div>
