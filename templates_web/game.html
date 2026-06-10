@@ -288,6 +288,37 @@ body:has(.title-screen) #scene-bg { display: none; }
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* 📖 決算レポート：ページめくり演出 */
+#story { perspective: 1500px; }
+.story-item:has(.quarter-closing-report) {
+  position: relative;
+  transform-origin: left center;
+  backface-visibility: hidden;
+  animation: pageFlip 1.05s cubic-bezier(.25,.75,.3,1) both;
+}
+@keyframes pageFlip {
+  0%   { transform: rotateY(-105deg); opacity: 0; }
+  25%  { opacity: 1; }
+  70%  { transform: rotateY(8deg); }    /* めくり切った反動 */
+  100% { transform: rotateY(0deg); opacity: 1; }
+}
+/* めくり中に紙面を走る光（ページの照り返し）*/
+.story-item:has(.quarter-closing-report)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(100deg,
+    rgba(255,255,255,.30) 0%, rgba(255,255,255,.10) 18%, transparent 40%);
+  animation: pageShine 1.05s ease both;
+}
+@keyframes pageShine {
+  0%   { opacity: 1; }
+  70%  { opacity: .5; }
+  100% { opacity: 0; }
+}
 @keyframes ipoZoomIn {
   from { opacity: 0; transform: scale(.6) translateY(30px); }
   to   { opacity: 1; transform: scale(1)  translateY(0); }
