@@ -209,11 +209,74 @@ html:has(.title-screen) {
   gap: 10px;
   scrollbar-width: thin;
   scrollbar-color: #2a5888 var(--bg);
+  /* シーン背景（#scene-bg）を透かすため半透明 */
   background:
-    radial-gradient(ellipse at 0% 0%,   rgba(100,200,255,.10) 0%, transparent 55%),
-    radial-gradient(ellipse at 100% 100%, rgba(160,100,255,.07) 0%, transparent 55%),
-    radial-gradient(ellipse at 50% 50%,  rgba(0,120,200,.05)  0%, transparent 70%),
-    var(--bg);
+    radial-gradient(ellipse at 0% 0%,   rgba(100,200,255,.08) 0%, transparent 55%),
+    radial-gradient(ellipse at 100% 100%, rgba(160,100,255,.05) 0%, transparent 55%),
+    rgba(27,64,104,.42);
+}
+
+/* ════════════════════════════════════════════
+   🏛 シーン背景システム（取締役会・株主総会・社長室）
+════════════════════════════════════════════ */
+#scene-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--bg);
+}
+.scene-layer {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center 30%;
+  opacity: 0;
+  transition: opacity 1.4s ease;
+}
+.scene-layer.scene-on { opacity: 1; }
+/* 暗幕：テキストの可読性を確保しつつ背景の雰囲気を残す */
+#scene-dim {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(6,16,34,.82) 0%, rgba(6,16,34,.66) 35%, rgba(6,16,34,.80) 100%);
+}
+#app { position: relative; z-index: 1; }
+/* タイトル画面中はシーン背景を消す */
+body:has(.title-screen) #scene-bg { display: none; }
+
+/* シーン転換バナー（アイキャッチ）*/
+#scene-banner {
+  position: fixed;
+  top: 42%;
+  left: 0;
+  right: 0;
+  z-index: 250;
+  pointer-events: none;
+  text-align: center;
+  opacity: 0;
+}
+#scene-banner.banner-show {
+  animation: sceneBanner 2.2s ease forwards;
+}
+#scene-banner .banner-inner {
+  display: inline-block;
+  padding: 12px 60px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 6px;
+  color: #fff;
+  text-shadow: 0 0 18px rgba(0,229,255,.8), 0 2px 6px rgba(0,0,0,.8);
+  background: linear-gradient(90deg, transparent 0%, rgba(8,30,66,.92) 18%, rgba(8,30,66,.92) 82%, transparent 100%);
+  border-top: 1px solid rgba(255,215,0,.55);
+  border-bottom: 1px solid rgba(255,215,0,.55);
+}
+@keyframes sceneBanner {
+  0%   { opacity: 0; transform: scale(.92); }
+  12%  { opacity: 1; transform: scale(1); }
+  80%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.02); }
 }
 #story::-webkit-scrollbar { width: 5px; }
 #story::-webkit-scrollbar-track { background: transparent; }
@@ -1445,6 +1508,68 @@ html:has(.title-screen) {
 }
 
 /* ════════════════════════════════════════════
+   📱 スマホ対応：縦持ちは回転案内 / 横持ちはコンパクト3カラム
+════════════════════════════════════════════ */
+/* 縦持ち案内オーバーレイ（通常は非表示）*/
+#rotate-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  background: linear-gradient(180deg, #0a1d38 0%, #122b52 100%);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  text-align: center;
+  padding: 24px;
+}
+#rotate-overlay .rotate-icon {
+  font-size: 64px;
+  animation: rotateHint 1.6s ease-in-out infinite;
+}
+@keyframes rotateHint {
+  0%, 100% { transform: rotate(0deg); }
+  45%, 70% { transform: rotate(90deg); }
+}
+#rotate-overlay .rotate-msg {
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffd700;
+  letter-spacing: 2px;
+}
+#rotate-overlay .rotate-sub {
+  font-size: 12px;
+  color: var(--dim);
+  line-height: 1.7;
+}
+/* スマホ縦持ち：ゲームを隠して回転案内を表示 */
+@media (orientation: portrait) and (max-width: 600px) {
+  #rotate-overlay { display: flex; }
+  #sound-btn, #avatar-panel { display: none !important; }
+}
+/* スマホ横持ち：サイドバーを復活させたコンパクト3カラム
+   （上の max-width:768px ルールより後に書いて上書きする）*/
+@media (orientation: landscape) and (max-height: 500px) {
+  #app  { grid-template-rows: 40px 1fr 46px auto; }
+  #hdr  { padding: 0 48px 0 8px; }
+  #hdr-logo-link { display: none; }
+  #hdr-title { font-size: 12px; letter-spacing: 2px; }
+  #hdr-deco  { font-size: 10px; }
+  #main { grid-template-columns: 168px 1fr 146px; }
+  #sidebar       { display: block; padding: 8px 6px; }
+  #right-sidebar { display: block; padding: 6px 5px; }
+  #story { padding: 10px 12px; gap: 8px; }
+  #btn-bar { padding: 5px; gap: 5px; }
+  #btn-bar button { font-size: 11px; padding: 5px 8px; }
+  /* アバターは小さめに（左サイドバーへの被りを軽減）*/
+  #avatar-panel { bottom: 50px; left: 4px; }
+  #avatar-img-wrap, #avatar-img { width: 64px !important; height: 64px !important; }
+  #avatar-name { font-size: 9px; }
+  #avatar-role { font-size: 7px; }
+}
+
+/* ════════════════════════════════════════════
    🎭 アバターシステム
 ════════════════════════════════════════════ */
 #avatar-panel {
@@ -1626,6 +1751,20 @@ html:has(.title-screen) {
 </style>
 </head>
 <body>
+<!-- 🏛 シーン背景（取締役会・株主総会・社長室）-->
+<div id="scene-bg">
+  <div class="scene-layer" id="scene-layer-a"></div>
+  <div class="scene-layer" id="scene-layer-b"></div>
+  <div id="scene-dim"></div>
+</div>
+<!-- シーン転換バナー -->
+<div id="scene-banner"><span class="banner-inner"></span></div>
+<!-- 📱 スマホ縦持ち時の回転案内 -->
+<div id="rotate-overlay">
+  <div class="rotate-icon">📱</div>
+  <div class="rotate-msg">画面を横にしてください</div>
+  <div class="rotate-sub">THE IPO PATH は横画面専用です。<br>スマートフォンを横向きにしてお楽しみください。</div>
+</div>
 <div id="app">
 
   <!-- ヘッダー -->
@@ -1673,6 +1812,91 @@ html:has(.title-screen) {
     <div id="avatar-role"></div>
   </div>
 </div>
+
+<script>
+/* ════════════════════════════════════════════
+   🏛 SceneSystem：場面に応じた背景クロスフェード＋転換バナー
+════════════════════════════════════════════ */
+(function () {
+  'use strict';
+
+  var SCENES = {
+    office:    { img: '/static/bg_office.jpg',    label: '' },                 /* 日常はバナーなし */
+    boardroom: { img: '/static/bg_boardroom.jpg', label: '📋 取締役会' },
+    agm:       { img: '/static/bg_agm.jpg',       label: '🏛 定時株主総会' },
+  };
+
+  var _cur = '';        /* 現在のシーン名（'' = なし）*/
+  var _front = 'a';     /* 現在表示中のレイヤー */
+  var _bannerTimer = null;
+
+  /* 画像をプリロード（初回フェード時のチラつき防止）*/
+  Object.keys(SCENES).forEach(function (k) {
+    var im = new Image(); im.src = SCENES[k].img;
+  });
+
+  function layer(which) { return document.getElementById('scene-layer-' + which); }
+
+  function setScene(name) {
+    if (name === _cur) return;
+    var a = layer('a'), b = layer('b');
+    if (!a || !b) return;
+    var prev = _cur;
+    _cur = name;
+
+    if (!name || !SCENES[name]) {
+      /* シーン解除：両レイヤーをフェードアウト */
+      a.classList.remove('scene-on');
+      b.classList.remove('scene-on');
+      return;
+    }
+    /* 裏レイヤーに新背景をセットしてクロスフェード */
+    var back  = (_front === 'a') ? b : a;
+    var front = (_front === 'a') ? a : b;
+    back.style.backgroundImage = "url('" + SCENES[name].img + "')";
+    back.classList.add('scene-on');
+    front.classList.remove('scene-on');
+    _front = (_front === 'a') ? 'b' : 'a';
+
+    /* 特別な場面（取締役会・総会）に入った時だけバナー表示 */
+    if (SCENES[name].label && prev !== name) showBanner(SCENES[name].label);
+  }
+
+  function showBanner(text) {
+    var bn = document.getElementById('scene-banner');
+    if (!bn) return;
+    bn.querySelector('.banner-inner').textContent = text;
+    bn.classList.remove('banner-show');
+    void bn.offsetWidth;   /* アニメーション再始動 */
+    bn.classList.add('banner-show');
+    clearTimeout(_bannerTimer);
+    _bannerTimer = setTimeout(function () { bn.classList.remove('banner-show'); }, 2300);
+  }
+
+  /* ── パネル内容からシーンを判定 ──
+     null を返したら現シーン維持（株主反応など文脈継続パネル用）*/
+  function sceneFor(el, itemType) {
+    if (itemType === 'title' || el.querySelector('.title-screen')) return '';
+    var txt = el.textContent || '';
+    /* 株主総会関連（開催・議案・決議・閉会）→ 総会会場 */
+    if (txt.indexOf('株主総会') !== -1) return 'agm';
+    /* 意思決定（選択肢カード）→ 取締役会 */
+    if (el.querySelector('.choices-wrapper')) return 'boardroom';
+    /* ナラティブ（今期の状況・回想・総会後の社長室）・前Q結果報告・四半期決算 → 社長室 */
+    if (el.querySelector('.ain-body') || el.querySelector('.do-text')
+        || itemType === 'quarterly_slot') return 'office';
+    return null;
+  }
+
+  /* appendStory から呼ばれる：パネル追加のたびにシーンを更新 */
+  function update(el, itemType) {
+    var s = sceneFor(el, itemType);
+    if (s !== null) setScene(s);
+  }
+
+  window.SceneSystem = { setScene: setScene, update: update };
+})();
+</script>
 
 <script>
 (function () {
@@ -1978,6 +2202,8 @@ html:has(.title-screen) {
     div.className = 'story-item';
     div.innerHTML = html;
     storyEl.appendChild(div);
+    /* 🏛 シーン背景の自動切替（取締役会・株主総会・社長室）*/
+    if (window.SceneSystem) window.SceneSystem.update(div, itemType);
     /* タイトル画面：localStorageにセーブデータがあれば再開ボタンをクライアント側で注入
        （サーバー側ファイルが存在しない環境＝クラウドデプロイ時に対応） */
     if (itemType === 'title') {
