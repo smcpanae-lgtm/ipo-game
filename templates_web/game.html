@@ -725,6 +725,10 @@ body:has(.title-screen) #scene-bg { display: none; }
   transition: transform .18s ease, box-shadow .18s ease, background .15s, outline .1s;
   cursor: pointer;
   position: relative;
+  /* ダブルクリックでテキストが選択され、ブラウザの選択メニュー
+     （コピー/検索/Copilot等）が出るのを防ぐ */
+  user-select: none;
+  -webkit-user-select: none;
   overflow: hidden;
   outline: 2px solid transparent;
 }
@@ -2229,6 +2233,8 @@ body:has(.title-screen) #scene-bg { display: none; }
 
   /* 選択肢カードのダブルクリックで呼ばれるエイリアス */
   window.submitAction = function (value) {
+    /* ダブルクリックによるテキスト選択を解除（ブラウザの選択メニュー抑止）*/
+    try { window.getSelection().removeAllRanges(); } catch (_) {}
     if (!_actionInProgress) playGavel();
     window.gameAction(value);
   };
