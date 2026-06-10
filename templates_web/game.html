@@ -1877,14 +1877,18 @@ body:has(.title-screen) #scene-bg { display: none; }
      null を返したら現シーン維持（株主反応など文脈継続パネル用）*/
   function sceneFor(el, itemType) {
     if (itemType === 'title' || el.querySelector('.title-screen')) return '';
-    var txt = el.textContent || '';
-    /* 株主総会関連（開催・議案・決議・閉会）→ 総会会場 */
-    if (txt.indexOf('株主総会') !== -1) return 'agm';
+    /* 構造で判定できるパネルを優先：
+       四半期決算レポート・ナラティブ・前Q結果報告 → 社長室
+       （決算レポート内の「株主総会」等の文字列に誤反応しないよう先に判定）*/
+    if (itemType === 'quarterly_slot' || el.querySelector('.qcr-title')
+        || el.querySelector('.ain-body') || el.querySelector('.do-text')) return 'office';
     /* 意思決定（選択肢カード）→ 取締役会 */
     if (el.querySelector('.choices-wrapper')) return 'boardroom';
-    /* ナラティブ（今期の状況・回想・総会後の社長室）・前Q結果報告・四半期決算 → 社長室 */
-    if (el.querySelector('.ain-body') || el.querySelector('.do-text')
-        || itemType === 'quarterly_slot') return 'office';
+    /* 株主総会の本体パネルのみ（開催・議決結果・閉会の定型句で厳密判定）→ 総会会場 */
+    var txt = el.textContent || '';
+    if (txt.indexOf('株主総会 開催') !== -1
+        || txt.indexOf('株主総会 議決結果') !== -1
+        || txt.indexOf('株主総会 閉会') !== -1) return 'agm';
     return null;
   }
 
