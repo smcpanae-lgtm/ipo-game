@@ -3658,7 +3658,7 @@ class GameSession:
                 f'N-3期からの4年間にわたる全ての準備が、今この瞬間に実を結びました</div>'
                 f'</div>'
             )
-            self._add("", "ipo_fireworks")
+            # 花火は _show_ending 側で登頂演出の後に発火する
             self._show_ending("success", [])
         else:
             # ════════ 審査不通過 ════════
@@ -3871,13 +3871,14 @@ class GameSession:
     def _show_ending(self, ending_type: str, issues: list):
         _delete_save()   # ゲーム終了時はセーブデータを削除
         c = self.company
-        # 🗺 ワールドマップ：成功なら山頂の鐘へ、失敗なら大きく滑落
+        # 🗺 ワールドマップ：成功なら山頂の鐘へ登頂 → 花火、失敗なら大きく滑落
         if ending_type == "success":
             self._map_goal()
+            self._add("", "ipo_fireworks")   # 登頂を見届けてから花火＋音楽
         else:
             self._map_fall(3, "⚠ 上場ならず — 滑落…")
         if ending_type == "success":
-            # ─ 詳細な成功ストーリーパネル（花火・音楽は _run_tse_verdict 側で発火済み）─
+            # ─ 詳細な成功ストーリーパネル（花火・音楽は直前の登頂演出後に発火済み）─
             mkt_labels = {"growth": "グロース市場", "standard": "スタンダード市場", "prime": "プライム市場"}
             mkt = mkt_labels.get(self.target_market, "グロース市場")
             checklist_done = sum([
