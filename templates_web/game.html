@@ -3657,15 +3657,17 @@ body:has(.title-screen) #scene-bg { display: none; }
     if (itemType === 'bomb') {
       return { mode: 'type', speaker: 'advisor', sel: '.bomb-text' };
     }
-    /* イベント説明（社長へのご報告 / 突発 / 重要イベント）*/
+    /* イベント説明（社長へのご報告 / 突発 / 重要イベント）
+       話者判定はパネルタイトルのみで行う（本文中の「主幹事」「CFO」等への誤反応を防ぐ）*/
     if (itemType === 'event_panel') {
+      var head2 = (div.querySelector('.panel-title') || {}).textContent || '';
       var sp2 = 'advisor';
       /* CFOからの報告 → CFO（ただし「CFO採用」イベントは採用前なのでIPO顧問）*/
-      if (txt.indexOf('CFO') !== -1 && txt.indexOf('採用') === -1) {
+      if (head2.indexOf('CFO') !== -1 && head2.indexOf('採用') === -1) {
         sp2 = 'cfo';
       /* 主幹事証券会社からの報告 → 主幹事担当者（選定イベントは選定前なのでIPO顧問）*/
-      } else if (txt.indexOf('主幹事') !== -1
-                 && txt.indexOf('選定') === -1 && txt.indexOf('選択') === -1) {
+      } else if (head2.indexOf('主幹事') !== -1
+                 && head2.indexOf('選定') === -1 && head2.indexOf('選択') === -1) {
         sp2 = 'underwriter';
       }
       return { mode: 'type', speaker: sp2, sel: '.panel-body' };
