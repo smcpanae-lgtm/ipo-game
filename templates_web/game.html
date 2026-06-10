@@ -278,6 +278,116 @@ body:has(.title-screen) #scene-bg { display: none; }
   80%  { opacity: 1; transform: scale(1); }
   100% { opacity: 0; transform: scale(1.02); }
 }
+
+/* ════════════════════════════════════════════
+   🔨 意思決定ガベル演出（裁判官が小槌を2回打つ）
+════════════════════════════════════════════ */
+#gavel-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 8000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: rgba(2,8,20,.50);
+}
+#gavel-overlay.gavel-show { display: flex; animation: gavelFade 2.0s ease both; }
+@keyframes gavelFade {
+  0%   { opacity: 0; }
+  8%   { opacity: 1; }
+  88%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+.gavel-stage { position: relative; width: 340px; height: 220px; }
+/* 裁判官 */
+.gavel-judge {
+  position: absolute; left: 6px; bottom: 38px;
+  font-size: 84px; line-height: 1;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,.6));
+}
+/* 「静粛に！」吹き出し */
+.gavel-say {
+  position: absolute; left: 96px; top: 0;
+  background: #fff; color: #16335a;
+  font-size: 17px; font-weight: 700; letter-spacing: 2px;
+  padding: 7px 16px; border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.45);
+  animation: gavelSay 2.0s ease both;
+}
+.gavel-say::after {
+  content: ''; position: absolute; left: -10px; bottom: 8px;
+  border-top: 7px solid transparent; border-bottom: 7px solid transparent;
+  border-right: 12px solid #fff;
+}
+@keyframes gavelSay {
+  0%  { opacity: 0; transform: scale(.6); }
+  8%  { opacity: 1; transform: scale(1); }
+  55% { opacity: 1; }
+  70% { opacity: 0; }
+  100%{ opacity: 0; }
+}
+/* 小槌（トンカチ）：2回振り下ろす */
+.gavel-hammer {
+  position: absolute; right: 64px; bottom: 84px;
+  font-size: 72px; line-height: 1;
+  transform-origin: 85% 85%;
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,.6));
+  animation: gavelSwing 2.0s ease-in both;
+}
+@keyframes gavelSwing {
+  0%, 16% { transform: rotate(-50deg); }
+  23%     { transform: rotate(16deg); }   /* 1打目 ≈460ms */
+  30%     { transform: rotate(-46deg); }
+  41%     { transform: rotate(-46deg); }
+  48%     { transform: rotate(16deg); }   /* 2打目 ≈960ms */
+  56%     { transform: rotate(-50deg); }
+  100%    { transform: rotate(-50deg); }
+}
+/* 打撃台 */
+.gavel-base {
+  position: absolute; right: 36px; bottom: 56px;
+  width: 110px; height: 14px; border-radius: 5px;
+  background: linear-gradient(180deg, #8a5a2b, #5d3a18);
+  box-shadow: 0 4px 10px rgba(0,0,0,.55);
+}
+/* 打撃の閃光 */
+.gavel-impact {
+  position: absolute; right: 64px; bottom: 64px;
+  font-size: 40px; color: #ffe866;
+  text-shadow: 0 0 18px rgba(255,215,0,.9);
+  opacity: 0;
+  animation: gavelImpact 2.0s linear both;
+}
+@keyframes gavelImpact {
+  0%, 22%  { opacity: 0; transform: scale(.4); }
+  24%      { opacity: 1; transform: scale(1.25); }  /* 1打目 */
+  29%      { opacity: 0; transform: scale(.5); }
+  47%      { opacity: 0; transform: scale(.4); }
+  49%      { opacity: 1; transform: scale(1.45); }  /* 2打目 */
+  56%      { opacity: 0; transform: scale(.6); }
+  100%     { opacity: 0; }
+}
+/* 「決 定」スタンプ */
+.gavel-decided {
+  position: absolute; left: 50%; top: 46%;
+  transform: translate(-50%, -50%) rotate(-7deg);
+  font-size: 38px; font-weight: 700; letter-spacing: 10px;
+  color: #ffd700;
+  border: 4px solid #ffd700; border-radius: 8px;
+  padding: 6px 22px;
+  background: rgba(8,30,66,.85);
+  text-shadow: 0 0 22px rgba(255,215,0,.7);
+  box-shadow: 0 0 30px rgba(255,215,0,.35);
+  opacity: 0;
+  animation: gavelStamp 2.0s ease both;
+}
+@keyframes gavelStamp {
+  0%, 55% { opacity: 0; transform: translate(-50%,-50%) rotate(-7deg) scale(2.4); }
+  62%     { opacity: 1; transform: translate(-50%,-50%) rotate(-7deg) scale(1); }
+  90%     { opacity: 1; }
+  100%    { opacity: 0; }
+}
 #story::-webkit-scrollbar { width: 5px; }
 #story::-webkit-scrollbar-track { background: transparent; }
 #story::-webkit-scrollbar-thumb { background: #2a2a50; border-radius: 4px; }
@@ -1790,6 +1900,17 @@ body:has(.title-screen) #scene-bg { display: none; }
 </div>
 <!-- シーン転換バナー -->
 <div id="scene-banner"><span class="banner-inner"></span></div>
+<!-- 🔨 意思決定ガベル演出 -->
+<div id="gavel-overlay">
+  <div class="gavel-stage">
+    <div class="gavel-judge">🧑‍⚖️</div>
+    <div class="gavel-say">静粛に！</div>
+    <div class="gavel-base"></div>
+    <div class="gavel-hammer">🔨</div>
+    <div class="gavel-impact">✦</div>
+    <div class="gavel-decided">決 定</div>
+  </div>
+</div>
 <!-- 📱 スマホ縦持ち時の回転案内 -->
 <div id="rotate-overlay">
   <div class="rotate-icon">📱</div>
@@ -2113,8 +2234,24 @@ body:has(.title-screen) #scene-bg { display: none; }
   };
 
 
+  /* 🔨 意思決定ガベル演出：裁判官が小槌を2回打って「決定」 */
+  var _gavelTimer = null;
+  function playGavel() {
+    var ov = document.getElementById('gavel-overlay');
+    if (!ov) return;
+    ov.classList.remove('gavel-show');
+    void ov.offsetWidth;   /* アニメーション再始動 */
+    ov.classList.add('gavel-show');
+    /* 打撃音（既存SFXの重いリール停止音を流用・ミュート設定に追従）*/
+    setTimeout(function(){ if (window._slotSfx) window._slotSfx.reelStop(true); }, 460);
+    setTimeout(function(){ if (window._slotSfx) window._slotSfx.reelStop(true); }, 960);
+    clearTimeout(_gavelTimer);
+    _gavelTimer = setTimeout(function(){ ov.classList.remove('gavel-show'); }, 2050);
+  }
+
   /* 選択肢カードのダブルクリックで呼ばれるエイリアス */
   window.submitAction = function (value) {
+    if (!_actionInProgress) playGavel();
     window.gameAction(value);
   };
 
