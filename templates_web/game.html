@@ -246,6 +246,25 @@ html:has(.title-screen) {
 /* タイトル画面中はシーン背景を消す */
 body:has(.title-screen) #scene-bg { display: none; }
 
+/* シーンフラッシュ：場面転換の瞬間だけ背景画像を最前面にフル表示
+   （バナーと同時に現れ、バナーが消えると同時に暗幕付き背景へ戻る）*/
+#scene-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 240;            /* バナー(250)のすぐ下・UI(#app=1)より上 */
+  pointer-events: none;
+  opacity: 0;
+  background-size: cover;
+  background-position: center 30%;
+}
+#scene-flash.flash-show { animation: sceneFlash 2.3s ease both; }
+@keyframes sceneFlash {
+  0%   { opacity: 0; }
+  10%  { opacity: 1; }
+  78%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 /* シーン転換バナー（アイキャッチ）*/
 #scene-banner {
   position: fixed;
@@ -1966,6 +1985,8 @@ body:has(.title-screen) #scene-bg { display: none; }
   <div class="scene-layer" id="scene-layer-b"></div>
   <div id="scene-dim"></div>
 </div>
+<!-- シーンフラッシュ（場面転換の瞬間のフル表示）-->
+<div id="scene-flash"></div>
 <!-- シーン転換バナー -->
 <div id="scene-banner"><span class="banner-inner"></span></div>
 <!-- 🗺 ワールドマップ（すごろく盤面）-->
@@ -2050,12 +2071,13 @@ body:has(.title-screen) #scene-bg { display: none; }
   var SCENES = {
     office:    { img: '/static/bg_office.jpg',    label: '' },                 /* 日常はバナーなし */
     boardroom: { img: '/static/bg_boardroom.jpg', label: '📋 取締役会' },
-    agm:       { img: '/static/bg_agm.jpg',       label: '🏛 定時株主総会' },
+    agm:       { img: '/static/bg_agm.jpg',       label: '🏛 定時株主総会', flash: true },
   };
 
   var _cur = '';        /* 現在のシーン名（'' = なし）*/
   var _front = 'a';     /* 現在表示中のレイヤー */
   var _bannerTimer = null;
+  var _flashTimer = null;
 
   /* 画像をプリロード（初回フェード時のチラつき防止）*/
   Object.keys(SCENES).forEach(function (k) {
@@ -2086,7 +2108,23 @@ body:has(.title-screen) #scene-bg { display: none; }
     _front = (_front === 'a') ? 'b' : 'a';
 
     /* 特別な場面（取締役会・総会）に入った時だけバナー表示 */
-    if (SCENES[name].label && prev !== name) showBanner(SCENES[name].label);
+    if (SCENES[name].label && prev !== name) {
+      showBanner(SCENES[name].label);
+      /* 総会などはバナーと同時に背景画像を最前面にフル表示し、
+         バナーが消えると同時に通常の暗幕付き背景へ戻す */
+      if (SCENES[name].flash) showFlash(SCENES[name].img);
+    }
+  }
+
+  function showFlash(img) {
+    var fl = document.getElementById('scene-flash');
+    if (!fl) return;
+    fl.style.backgroundImage = "url('" + img + "')";
+    fl.classList.remove('flash-show');
+    void fl.offsetWidth;   /* アニメーション再始動 */
+    fl.classList.add('flash-show');
+    clearTimeout(_flashTimer);
+    _flashTimer = setTimeout(function () { fl.classList.remove('flash-show'); }, 2350);
   }
 
   function showBanner(text) {
