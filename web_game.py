@@ -2043,6 +2043,23 @@ class GameSession:
                 if not getattr(EVENT_EOGM_ARTICLES_AMENDMENT, 'fired', False):
                     ipo_events.insert(0, EVENT_EOGM_ARTICLES_AMENDMENT)
 
+        # 🚀 成長投資の意思決定を年度ごとに最低1回保証
+        #   抽選の偶然で成長戦略イベントが一度も出ないと、プレイヤーは成長性を
+        #   高める機会がないまま審査の「高い成長可能性」で落ちてしまうため、
+        #   Q3までに出ていなければ強制注入する。
+        _growth_ids = ("sales_growth_early", "sales_growth_late")
+        if getattr(self, "_growth_event_done_period", None) != t.n_period:
+            if any(getattr(e, 'id', '') in _growth_ids for e in ipo_events):
+                self._growth_event_done_period = t.n_period
+            elif t.quarter >= 3:
+                _want_id = "sales_growth_early" if t.n_period <= -2 else "sales_growth_late"
+                _ge = next((e for e in self._game_events
+                            if getattr(e, 'id', '') == _want_id), None)
+                if _ge is not None:
+                    _ge.fired = False
+                    ipo_events.insert(0, _ge)
+                    self._growth_event_done_period = t.n_period
+
         # ── Q1: 🎪バナー + AGM議決結果表示 ──
         # 日本の定時株主総会は期末後3ヶ月以内（≒翌期Q1）に開催される
         if t.quarter == 1:
