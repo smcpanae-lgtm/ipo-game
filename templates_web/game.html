@@ -329,6 +329,33 @@ body:has(.title-screen) #scene-bg { display: none; }
   filter: drop-shadow(0 6px 8px rgba(0,0,0,.45));
   will-change: left, top;
 }
+/* 🏁 ライバルコマ */
+#wm-rival-wrap {
+  position: absolute;
+  width: 7%;
+  transform: translate(-50%, -92%);
+  pointer-events: none;
+  will-change: left, top;
+  display: none;
+}
+#wm-rival {
+  width: 100%;
+  display: block;
+  filter: drop-shadow(0 5px 7px rgba(0,0,0,.45));
+}
+#wm-rival-tag {
+  margin-top: -2px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #fff;
+  background: rgba(150,30,50,.88);
+  border: 1px solid rgba(255,120,140,.5);
+  border-radius: 6px;
+  padding: 1px 4px;
+  white-space: nowrap;
+}
 /* 現在地リング（足元の光輪）*/
 #wm-ring {
   position: absolute;
@@ -1993,6 +2020,10 @@ body:has(.title-screen) #scene-bg { display: none; }
 <div id="worldmap-overlay">
   <div id="wm-frame">
     <div id="wm-ring"></div>
+    <div id="wm-rival-wrap">
+      <img id="wm-rival" src="/static/rival_idle.png" alt="rival">
+      <div id="wm-rival-tag">ライバル</div>
+    </div>
     <img id="wm-piece" src="/static/piece_idle.png" alt="player">
     <div id="wm-label"></div>
   </div>
@@ -2193,9 +2224,17 @@ body:has(.title-screen) #scene-bg { display: none; }
     fall: '/static/piece_fall.png',
     goal: '/static/piece_goal.png'
   };
+  /* 🏁 ライバルコマのスプライト */
+  var RIMG = {
+    idle: '/static/rival_idle.png',
+    walk: '/static/rival_walk.png',
+    fall: '/static/rival_fall.png'
+  };
   Object.keys(IMG).forEach(function (k) { var im = new Image(); im.src = IMG[k]; });
+  Object.keys(RIMG).forEach(function (k) { var im = new Image(); im.src = RIMG[k]; });
 
   var ov = null, piece = null, ring = null, label = null;
+  var rivalWrap = null, rivalImg = null, rivalTag = null;
   var _timers = [];
   var _done = null;
 
@@ -2204,6 +2243,9 @@ body:has(.title-screen) #scene-bg { display: none; }
     piece = document.getElementById('wm-piece');
     ring  = document.getElementById('wm-ring');
     label = document.getElementById('wm-label');
+    rivalWrap = document.getElementById('wm-rival-wrap');
+    rivalImg  = document.getElementById('wm-rival');
+    rivalTag  = document.getElementById('wm-rival-tag');
   }
 
   function clearTimers() {
@@ -2211,9 +2253,9 @@ body:has(.title-screen) #scene-bg { display: none; }
     _timers = [];
   }
 
-  function place(el, idx, yOff) {
+  function place(el, idx, yOff, xOff) {
     var t = TILES[Math.max(0, Math.min(TILES.length - 1, idx))];
-    el.style.left = t[0] + '%';
+    el.style.left = (t[0] + (xOff || 0)) + '%';
     el.style.top  = (t[1] + (yOff || 0)) + '%';
   }
 
@@ -2236,6 +2278,10 @@ body:has(.title-screen) #scene-bg { display: none; }
     var fall  = ds.fall === '1';
     var goal  = ds.goal === '1';
     var intro = ds.intro === '1';
+    /* 🏁 ライバルコマ（rFrom=-1 で非表示） */
+    var rFrom = parseInt(ds.rfrom, 10); if (isNaN(rFrom)) rFrom = -1;
+    var rTo   = parseInt(ds.rto, 10);   if (isNaN(rTo))   rTo   = rFrom;
+    var rFall = ds.rfall === '1';
 
     ov.classList.add('wm-show');
     ov.classList.toggle('wm-fall', fall);
@@ -2248,6 +2294,19 @@ body:has(.title-screen) #scene-bg { display: none; }
     piece.src = fall ? IMG.fall : IMG.idle;
     place(piece, from);
     place(ring, from, 0.6);
+    /* ライバルの初期配置（プレイヤーと重なる時は少し左上にずらす） */
+    if (rivalWrap) {
+      if (rFrom >= 0) {
+        rivalWrap.style.display = 'block';
+        rivalTag.textContent = ds.rname || 'ライバル';
+        rivalImg.src = RIMG.idle;
+        rivalImg.style.transform = '';
+        rivalWrap.style.transition = 'none';
+        place(rivalWrap, rFrom, (rFrom === from ? -3.5 : -1.2), (rFrom === from ? -2.0 : 0));
+      } else {
+        rivalWrap.style.display = 'none';
+      }
+    }
     void piece.offsetWidth;
 
     var hop = fall ? 380 : 560;
@@ -2288,18 +2347,47 @@ body:has(.title-screen) #scene-bg { display: none; }
 
     function arrive() {
       piece.style.transform = 'translate(-50%, -92%)';
+      var wait;
       if (goal) {
         piece.src = IMG.goal;
         piece.classList.add('wm-glory');
         if (window._slotSfx) window._slotSfx.fanfare();
-        finish(2600);
+        wait = 2600;
       } else if (fall) {
         piece.src = IMG.fall;
-        finish(1400);
+        wait = 1400;
       } else {
         piece.src = IMG.idle;
-        finish(950);
+        wait = 950;
       }
+      rivalPhase(wait);
+    }
+
+    /* 🏁 プレイヤー移動後にライバルが動く */
+    function rivalPhase(wait) {
+      if (!rivalWrap || rFrom < 0 || rTo < 0 || rTo === rFrom) { finish(wait); return; }
+      var rhop = rFall ? 340 : 430;
+      rivalWrap.style.transition = 'left ' + rhop + 'ms ease-in-out, top ' + rhop + 'ms ease-in-out';
+      rivalImg.src = rFall ? RIMG.fall : RIMG.walk;
+      var seq2 = [];
+      if (rTo > rFrom)      { for (var i2 = rFrom + 1; i2 <= rTo; i2++) seq2.push(i2); }
+      else                  { for (var j2 = rFrom - 1; j2 >= rTo; j2--) seq2.push(j2); }
+      var k = 0;
+      function rhopNext() {
+        if (k >= seq2.length) {
+          rivalImg.src = rFall ? RIMG.fall : RIMG.idle;
+          rivalImg.style.transform = '';
+          finish(Math.max(wait, 900));
+          return;
+        }
+        var idx2 = seq2[k], prev2 = (k === 0) ? rFrom : seq2[k - 1];
+        rivalImg.style.transform = (TILES[idx2][0] < TILES[prev2][0]) ? 'scaleX(-1)' : '';
+        place(rivalWrap, idx2, -1.2);
+        if (window._slotSfx) window._slotSfx.reelStop(false);
+        k++;
+        _timers.push(setTimeout(rhopNext, rhop + 70));
+      }
+      _timers.push(setTimeout(rhopNext, 380));
     }
 
     /* 盤面を一拍見せてから歩き出す */

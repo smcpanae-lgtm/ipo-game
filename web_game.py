@@ -605,11 +605,17 @@ MAP_TILE_FOR_TURN = [0, 2, 3, 5, 7, 8, 10, 12, 13, 15, 17, 18, 20, 22, 23, 25]
 
 
 def map_move_html(from_tile: int, to_tile: int, label: str = "",
-                  fall: bool = False, goal: bool = False, intro: bool = False) -> str:
+                  fall: bool = False, goal: bool = False, intro: bool = False,
+                  r_from: int = -1, r_to: int = -1, r_fall: bool = False,
+                  r_name: str = "") -> str:
+    """🏁 r_from/r_to はライバルコマの移動（-1=ライバル非表示）。
+    r_from == r_to なら現在地に静止表示のみ。"""
     return (
         f'<div class="map-move" data-from="{from_tile}" data-to="{to_tile}"'
         f' data-fall="{1 if fall else 0}" data-goal="{1 if goal else 0}"'
-        f' data-intro="{1 if intro else 0}" data-label="{esc(label)}"></div>'
+        f' data-intro="{1 if intro else 0}" data-label="{esc(label)}"'
+        f' data-rfrom="{r_from}" data-rto="{r_to}"'
+        f' data-rfall="{1 if r_fall else 0}" data-rname="{esc(r_name)}"></div>'
     )
 
 
@@ -1139,6 +1145,18 @@ class GameSession:
         self._game_events = get_fresh_events()   # ← 毎ゲーム新規コピー
         self._world_events = get_fresh_world_events()
         self._schedule_ai_crises()               # ← AI突発クライシスをスケジュール
+        # ── 🏁 ライバル企業（上場レース）の初期化 ──
+        _rival_names = {
+            "SaaS":     "クラウドフォース",
+            "FinTech":  "ペイブリッジ",
+            "製造業":    "ミライ精工",
+            "小売業":    "マルシェHD",
+        }
+        self._rival = {
+            "name": _rival_names.get(btype.value, "ライバル社"),
+            "pos": 0,            # ワールドマップ上のマス（0〜26）
+            "listed": False,     # 上場済みか
+        }
         self._prev_cash = self.company.cash
         self._prev_rev  = self.company.revenue.recognized
         self._prev_scores = self._get_score_snapshot()
@@ -1875,6 +1893,13 @@ class GameSession:
             self._add(story_panel(body, "📋 定款変更 登記完了", "cyan"))
             self._score_change_reasons.append("📄 定款変更登記完了：コンプラ+8")
 
+    def _rival_static(self) -> dict:
+        """🏁 マップ演出にライバルを静止表示するためのパラメータ"""
+        rv = getattr(self, "_rival", None)
+        if not rv:
+            return {}
+        return {"r_from": rv["pos"], "r_to": rv["pos"], "r_name": rv["name"]}
+
     def _map_fall(self, steps: int = 1, label: str = "⚠ 転落！"):
         """🗺 ワールドマップ：コマを後退させる（悪い出来事の演出）"""
         cur = getattr(self, "_map_pos", 0)
@@ -1882,13 +1907,14 @@ class GameSession:
         if to == cur:
             return
         self._map_pos = to
-        self._add(map_move_html(cur, to, label, fall=True), "map_move")
+        self._add(map_move_html(cur, to, label, fall=True, **self._rival_static()), "map_move")
 
     def _map_goal(self):
         """🗺 ワールドマップ：山頂の鐘へ（上場成功）"""
         cur = getattr(self, "_map_pos", 0)
         self._map_pos = MAP_GOAL_TILE
-        self._add(map_move_html(cur, MAP_GOAL_TILE, "🔔 登頂 — 上場達成！", goal=True), "map_move")
+        self._add(map_move_html(cur, MAP_GOAL_TILE, "🔔 登頂 — 上場達成！", goal=True,
+                                **self._rival_static()), "map_move")
 
     def _begin_turn(self):
         c = self.company
@@ -1908,6 +1934,53 @@ class GameSession:
             self._run_audit_roulette()
             return
 
+        # ── 🏁 ライバルの進行（マップ表示前に算出し、同じマップ演出で見せる）──
+        _rv = getattr(self, "_rival", None)
+        _r_from = _r_to = -1
+        _r_fall = False
+        _r_news = ""        # マップ表示後に流すニュース
+        _r_name = _rv["name"] if _rv else ""
+        if _rv is not None and _rv["listed"]:
+            _r_from = _r_to = MAP_GOAL_TILE   # 上場済み：山頂に静止表示
+        if _rv is not None and not _rv["listed"]:
+            _r_from = _rv["pos"]
+            _tidx_check = (t.n_period + 3) * 4 + (t.quarter - 1)
+            if _tidx_check > 0:   # 開幕ターンはライバルも麓で待機
+                if _rand.random() < 0.12:
+                    # 不祥事報道 → 滑落
+                    _r_steps = _rand.randint(2, 4)
+                    _rv["pos"] = max(0, _rv["pos"] - _r_steps)
+                    _r_fall = True
+                    _r_news = (
+                        f"📰 <strong>{esc(_rv['name'])}に不祥事報道！</strong><br><br>"
+                        f"競合の{esc(_rv['name'])}で内部管理体制の不備が報じられ、"
+                        f"上場準備が後退している模様です。<br>"
+                        f"▶ ライバルは{_r_steps}マス後退しました。"
+                    )
+                else:
+                    _roll = _rand.random()
+                    _r_steps = 1 if _roll < 0.15 else (2 if _roll < 0.65 else 3)
+                    _rv["pos"] = min(MAP_GOAL_TILE, _rv["pos"] + _r_steps)
+                    if _r_steps >= 3:
+                        _r_news = (
+                            f"📰 <strong>{esc(_rv['name'])}が急成長！</strong><br><br>"
+                            f"競合の{esc(_rv['name'])}が大型契約を獲得し、"
+                            f"上場準備を加速させています。<br>"
+                            f"▶ ライバルは{_r_steps}マス前進しました。先を越されるかもしれません。"
+                        )
+                if _rv["pos"] >= MAP_GOAL_TILE:
+                    _rv["listed"] = True
+                    c.rival_listed_first = True
+                    mkt_lbl = {"growth": "グロース", "standard": "スタンダード", "prime": "プライム"}.get(self.target_market, "グロース")
+                    _r_news = (
+                        f"📰 <strong>【速報】{esc(_rv['name'])}、東証{esc(mkt_lbl)}市場に上場！</strong><br><br>"
+                        f"ライバルに先を越されました。同業IPOの新鮮味が薄れ、<br>"
+                        f"投資家の関心が分散します。<br><br>"
+                        f"▶ <strong>御社の時価総額評価に -15% のディスカウント</strong>が掛かります。<br>"
+                        f"▶ それでも山頂は待っています。自社のペースで登り切りましょう。"
+                    )
+            _r_to = _rv["pos"]
+
         # ── 🗺 ワールドマップ：今四半期のマスへコマを進める ──
         _tidx = (t.n_period + 3) * 4 + (t.quarter - 1)
         if 0 <= _tidx < len(MAP_TILE_FOR_TURN):
@@ -1915,10 +1988,16 @@ class GameSession:
             _cur = getattr(self, "_map_pos", 0)
             if _tidx == 0:
                 self._map_pos = 0
-                self._add(map_move_html(0, 0, f"{t.full_label()} — 栄光への旅、開幕", intro=True), "map_move")
+                self._add(map_move_html(0, 0, f"{t.full_label()} — 栄光への旅、開幕", intro=True,
+                                        r_from=0, r_to=0, r_name=_r_name), "map_move")
             elif _target > _cur:
-                self._add(map_move_html(_cur, _target, f"{t.full_label()} へ出発！"), "map_move")
+                self._add(map_move_html(_cur, _target, f"{t.full_label()} へ出発！",
+                                        r_from=_r_from, r_to=_r_to, r_fall=_r_fall,
+                                        r_name=_r_name), "map_move")
                 self._map_pos = _target
+            # 🏁 ライバルのニュースはマップ演出の直後に表示
+            if _r_news:
+                self._add(story_panel(_r_news, f"📰 業界ニュース — 上場レース", "yellow"), "event_panel")
 
         # ─ 従業員持株会：毎Q+3名の実株主が積み上がる ─
         if getattr(c, 'has_esop', False):
@@ -3973,6 +4052,16 @@ class GameSession:
         if ending_type == "success":
             self._map_goal()
             self._add("", "ipo_fireworks")   # 登頂を見届けてから花火＋音楽
+            # 🏁 ライバルより先に上場できたら「業界初」ボーナス表示
+            _rv = getattr(self, "_rival", None)
+            if _rv and not _rv.get("listed"):
+                self._add(story_panel(
+                    f"📰 <strong>【速報】{esc(c.name)}、業界初の上場！</strong><br><br>"
+                    f"競合の{esc(_rv['name'])}（現在{_rv['pos']}/26マス）を抑えて、"
+                    f"見事に先頭で東証の鐘を鳴らしました。<br>"
+                    f"業界のリーディングカンパニーとして、投資家の注目を一身に集めます。",
+                    "🏁 上場レース 勝利！", "gold-bright"
+                ), "event_panel")
         else:
             self._map_fall(3, "⚠ 上場ならず — 滑落…")
         if ending_type == "success":
@@ -5164,6 +5253,17 @@ class GameSession:
                 f'<div class="sbr"><span>🏗 現場負荷</span><span style="color:#ffcc66">{_d}</span></div>'
                 + (f'<div style="font-size:10px;color:#ff8844;text-align:center">⚠ 成長と管理のバランスに注意</div>'
                    if (_o + _d) >= 4 and abs(_o - _d) >= 3 else ''))(),
+            '<div class="sb-sec">── 🏁 上場レース ──────</div>',
+            # ライバルとの登山レース（ワールドマップのマス位置）
+            (lambda _rv=getattr(self, "_rival", None), _mp=getattr(self, "_map_pos", 0):
+                ('' if not _rv else (
+                    f'<div class="sbr"><span>🧗 自社</span><span>{_mp}/26マス</span></div>'
+                    f'<div class="sbr"><span>🏃 {esc(_rv["name"])}</span>'
+                    f'<span style="color:{"#ff4444" if _rv["listed"] else ("#ff8844" if _rv["pos"] > _mp else "#00cc66")}">'
+                    + ("🔔 上場済み！" if _rv["listed"] else f'{_rv["pos"]}/26マス')
+                    + '</span></div>'
+                    + (f'<div style="font-size:10px;color:#ff8866;text-align:center">⚠ 評価-15%（先行上場の影響）</div>'
+                       if getattr(c, "rival_listed_first", False) else ''))))(),
             '<div class="sb-sec">── スコア ───────────</div>',
             srow("内統",     min(100, max(0, c.internal_control_score))),
             srow("コンプラ",  min(100, max(0, c.compliance_score))),

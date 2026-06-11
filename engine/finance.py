@@ -126,6 +126,9 @@ def advance_quarter_financials(company: Company, n_period: int, quarter: int):
 
     # 時価総額更新（📈 市況乗数を反映：弱気で割安評価、強気でプレミアム）
     new_mktcap = company.revenue.recognized * _get_per_multiple(company) * market_multiplier(company)
+    # 🏁 ライバルに先に上場された場合：同業IPOの新鮮味低下で評価-15%
+    if getattr(company, "rival_listed_first", False):
+        new_mktcap *= 0.85
     if n_period == -3 and quarter == 1:
         # N-3期Q1は開始直後のため、PER倍率差による過大変動を5%以内に抑制する
         old_mktcap = company.market_cap_million

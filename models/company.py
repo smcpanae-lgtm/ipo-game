@@ -200,6 +200,9 @@ class Company:
     market_index: float = 55.0           # 現在の市況
     market_momentum: float = 0.0         # 直近の変化（モメンタム）
 
+    # ── 🏁 上場レース ──
+    rival_listed_first: bool = False     # ライバルに先に上場された（評価-15%）
+
     # フラグ
     flags: Flags = field(default_factory=Flags)
 
