@@ -5140,12 +5140,12 @@ class GameSession:
                 f'<span style="color:{"#00cc66" if _mi >= 65 else ("#ffcc00" if _mi >= 35 else "#ff4444")}">'
                 f'{"🐂 強気" if _mi >= 65 else ("〜 中立" if _mi >= 35 else "🐻 弱気")} {_mi:.0f}'
                 f'<span style="color:var(--dim);font-size:10px">（評価×{market_multiplier(c):.2f}）</span></span></div>')(),
-            '<div class="sb-sec">── 💼 経営資源の配分 ──</div>',
-            # 🚀事業投資 / 🏗体制投資：戦略的な資源配分の累積（コンプラ必須対応は数えない）
+            '<div class="sb-sec">── 💼 成長と管理のバランス ──</div>',
+            # 🚀事業投資（戦略的な成長投資）/ 🏗現場負荷（管理対応に割いた現場リソース）
             (lambda _o=getattr(c, "offense_score", 0), _d=getattr(c, "defense_score", 0):
                 f'<div class="sbr"><span>🚀 事業投資</span><span style="color:#66bbff">{_o}</span></div>'
-                f'<div class="sbr"><span>🏗 体制投資</span><span style="color:#ffcc66">{_d}</span></div>'
-                + (f'<div style="font-size:10px;color:#ff8844;text-align:center">⚠ 配分が偏っています</div>'
+                f'<div class="sbr"><span>🏗 現場負荷</span><span style="color:#ffcc66">{_d}</span></div>'
+                + (f'<div style="font-size:10px;color:#ff8844;text-align:center">⚠ 成長と管理のバランスに注意</div>'
                    if (_o + _d) >= 4 and abs(_o - _d) >= 3 else ''))(),
             '<div class="sb-sec">── スコア ───────────</div>',
             srow("内統",     min(100, max(0, c.internal_control_score))),

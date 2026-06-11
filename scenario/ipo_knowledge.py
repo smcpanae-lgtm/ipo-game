@@ -14,10 +14,10 @@ from engine.finance import raise_funding
 #   守りの選択 → 成長率ダウン（現場負荷・固定費増）
 #   攻めの選択 → 成長率アップ＋リスク
 # ─────────────────────────────────────────────
-def _growth_tax(c: Company, pt: float, quarters: int = 0, mark: bool = False) -> str:
-    """体制対応の負荷：四半期成長率を pt ポイント引き下げる（quarters=0 で恒久）。
-    mark=True のときだけ「🏗 体制投資」として経営資源配分メーターに数える。
-    （コンプラ必須事項の整備は数えない＝戦略的な体制投資のみカウント）"""
+def _growth_tax(c: Company, pt: float, quarters: int = 0, mark: bool = True) -> str:
+    """管理対応の現場負荷：四半期成長率を pt ポイント引き下げる（quarters=0 で恒久）。
+    mark=True（既定）のとき「🏗 現場負荷」としてメーターに数える。
+    成長ブレーキ（コスト優先選択など管理対応でないもの）は mark=False で除外する。"""
     if quarters <= 0:
         c.growth_perm_delta -= pt / 100.0
         dur = "恒久"
@@ -26,12 +26,13 @@ def _growth_tax(c: Company, pt: float, quarters: int = 0, mark: bool = False) ->
         dur = f"{quarters}Q間"
     if mark:
         c.defense_score += 1
-    return f"🏗 体制対応の負荷: 成長率-{pt:g}pt（{dur}）— 現場リソースを管理対応に充当"
+        return f"🏗 現場負荷: 成長率-{pt:g}pt（{dur}）— 現場リソースを管理対応に充当"
+    return f"📉 成長ブレーキ: 成長率-{pt:g}pt（{dur}）"
 
 
 def _growth_boost(c: Company, pt: float, quarters: int = 0, mark: bool = False) -> str:
-    """事業投資の効果：四半期成長率を pt ポイント引き上げる（quarters=0 で恒久）。
-    mark=True のときだけ「🚀 事業投資」として経営資源配分メーターに数える。
+    """成長率を pt ポイント引き上げる（quarters=0 で恒久）。
+    mark=True のときだけ「🚀 事業投資」としてメーターに数える。
     （手抜き・先送りによる一時的な伸びは数えない＝戦略的な成長投資のみカウント）"""
     if quarters <= 0:
         c.growth_perm_delta += pt / 100.0
@@ -472,6 +473,7 @@ def _implement_job_separation(company: Company) -> str:
     company.flags.embezzlement_risk_level = 0
     company.internal_control_score += 20
     company.quarterly_burn += 3.0  # 担当者追加コスト
+    company.defense_score += 1     # 🏗 現場負荷（管理体制の運用負荷）
     return ("🔒 出納と記帳の職務分掌を実施しました。\n"
             f"   経理担当者を増員し、承認フローも整備。コスト¥3百万円/Q増加。\n"
             f"   内部統制スコア+20 / 横領リスクゼロに\n"
@@ -525,6 +527,7 @@ def _thorough_antisocial_check(company: Company) -> str:
     company.compliance_score += 25
     company.has_antisocial_system = True
     company.revenue.recognized *= 0.95   # 問題取引先の契約解除で売上減
+    company.defense_score += 1           # 🏗 現場負荷（取引先審査・契約見直しの負荷）
     return ("✅ 全取引先の反社会的勢力排除チェックを実施しました。\n"
             f"   専門調査機関に依頼し、問題のある取引先を契約解除。\n"
             f"   コンプライアンス+25 / 取引先解約で売上-5%（一時）\n"
@@ -633,6 +636,7 @@ def _appoint_outside_director(company: Company) -> str:
     # 内定（CEO決断）は今期行うが、正式就任・ガバナンス効果は総会承認後の翌四半期に発現。
     company.agm_deferred_outside_director = True
     company.quarterly_burn += 4.0  # 役員報酬は内定・報酬総額承認後から発生
+    company.defense_score += 1     # 🏗 現場負荷（取締役会運営・説明対応の負荷）
     return ("🏛️  独立社外取締役・社外監査役の候補者を内定しました。\n"
             f"   上場会社向けガバナンス経験のある弁護士・公認会計士を候補に選出しました。\n"
             f"   ▶ 【会社法第329条】取締役・監査役の選任は株主総会の普通決議が必要です。\n"
@@ -957,8 +961,7 @@ def _hire_experienced_cfo(company: Company) -> str:
     company.accounting_quality += 20
     company.auditor_trust += 20
     company.quarterly_burn += 8.0
-    company.defense_score += 1
-    _boost_msg = _growth_boost(company, 1)   # 資金調達力・経営管理の質向上（良い投資）
+    _boost_msg = _growth_boost(company, 1)   # 資金調達力・経営管理の質向上（負荷なしの好投資）
     return ("👔 IPO経験豊富なCFOを正社員・常勤で採用しました。\n"
             f"   前職でIPOを2社経験した公認会計士をCFOとして迎えました。\n"
             f"   会計品質+20 / 監査法人信頼+20（報酬¥8百万円/Q）\n   {_boost_msg}\n"
@@ -1359,7 +1362,7 @@ def _steady_sales_early(company: Company) -> str:
 def _cut_cost_early(company: Company) -> str:
     company.revenue.recognized *= 1.02
     company.cash += 8.0
-    _tax_msg = _growth_tax(company, 1, 2)
+    _tax_msg = _growth_tax(company, 1, 2, mark=False)   # 管理負荷ではなく成長ブレーキ
     return ("💰 コスト削減を優先しました。手元資金+¥8M / 売上+2%（成長鈍化）\n"
             f"   {_tax_msg}\n"
             "   ⚠ 成長率の低下はIPO審査での評価・公募価格に影響します。")
@@ -1434,7 +1437,7 @@ def _cut_cost_late(company: Company) -> str:
     company.revenue.recognized *= 1.02
     company.cash           += 12.0
     company.investor_trust -= 5
-    _tax_msg = _growth_tax(company, 1, 2)
+    _tax_msg = _growth_tax(company, 1, 2, mark=False)   # 管理負荷ではなく成長ブレーキ
     return ("💰 コスト削減・利益確保を優先しました。手元資金+¥12M / 投資家信頼-5\n"
             f"   {_tax_msg}\n"
             "   ⚠ 直前期の成長鈍化は公募価格・IPO評価に悪影響を与えます。")
