@@ -5133,20 +5133,20 @@ class GameSession:
                 f'<div class="sbr"><span>📈 成長率/Q</span>'
                 f'<span style="color:{"#00cc66" if _g >= _b else "#ff8844"}">{_g*100:.1f}%'
                 f'<span style="color:var(--dim);font-size:10px">（基礎{_b*100:.0f}%）</span></span></div>')(),
-            '<div class="sb-sec">── 市況・攻守 ────────</div>',
-            # 📊 市況メーター（IPOウィンドウ）
+            '<div class="sb-sec">── 📊 市況（IPOウィンドウ）──</div>',
+            # 市況メーター：時価総額の評価倍率に直結
             (lambda _mi=getattr(c, "market_index", 55.0):
-                f'<div class="sbr"><span>📊 市況</span>'
+                f'<div class="sbr"><span>市況</span>'
                 f'<span style="color:{"#00cc66" if _mi >= 65 else ("#ffcc00" if _mi >= 35 else "#ff4444")}">'
-                f'{"🐂強気" if _mi >= 65 else ("〜中立" if _mi >= 35 else "🐻弱気")} {_mi:.0f}'
+                f'{"🐂 強気" if _mi >= 65 else ("〜 中立" if _mi >= 35 else "🐻 弱気")} {_mi:.0f}'
                 f'<span style="color:var(--dim);font-size:10px">（評価×{market_multiplier(c):.2f}）</span></span></div>')(),
-            # ⚔🛡 攻守バランス
+            '<div class="sb-sec">── 💼 経営資源の配分 ──</div>',
+            # 🚀事業投資 / 🏗体制投資：戦略的な資源配分の累積（コンプラ必須対応は数えない）
             (lambda _o=getattr(c, "offense_score", 0), _d=getattr(c, "defense_score", 0):
-                f'<div class="sbr"><span>⚔ 攻め/守り 🛡</span>'
-                f'<span>{_o} <span style="color:var(--dim)">/</span> {_d}'
-                + (f' <span style="color:#ff8844;font-size:10px">⚠偏り</span>'
-                   if (_o + _d) >= 5 and abs(_o - _d) >= 4 else '')
-                + '</span></div>')(),
+                f'<div class="sbr"><span>🚀 事業投資</span><span style="color:#66bbff">{_o}</span></div>'
+                f'<div class="sbr"><span>🏗 体制投資</span><span style="color:#ffcc66">{_d}</span></div>'
+                + (f'<div style="font-size:10px;color:#ff8844;text-align:center">⚠ 配分が偏っています</div>'
+                   if (_o + _d) >= 4 and abs(_o - _d) >= 3 else ''))(),
             '<div class="sb-sec">── スコア ───────────</div>',
             srow("内統",     min(100, max(0, c.internal_control_score))),
             srow("コンプラ",  min(100, max(0, c.compliance_score))),

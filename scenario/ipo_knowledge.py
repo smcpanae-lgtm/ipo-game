@@ -14,28 +14,34 @@ from engine.finance import raise_funding
 #   守りの選択 → 成長率ダウン（現場負荷・固定費増）
 #   攻めの選択 → 成長率アップ＋リスク
 # ─────────────────────────────────────────────
-def _growth_tax(c: Company, pt: float, quarters: int = 0) -> str:
-    """守りの代償：四半期成長率を pt ポイント引き下げる（quarters=0 で恒久）"""
+def _growth_tax(c: Company, pt: float, quarters: int = 0, mark: bool = False) -> str:
+    """体制対応の負荷：四半期成長率を pt ポイント引き下げる（quarters=0 で恒久）。
+    mark=True のときだけ「🏗 体制投資」として経営資源配分メーターに数える。
+    （コンプラ必須事項の整備は数えない＝戦略的な体制投資のみカウント）"""
     if quarters <= 0:
         c.growth_perm_delta -= pt / 100.0
         dur = "恒久"
     else:
         c.growth_temp_mods.append([-pt / 100.0, quarters])
         dur = f"{quarters}Q間"
-    c.defense_score += 1
-    return f"🛡 守りの代償: 成長率-{pt:g}pt（{dur}）— 管理対応に現場リソースを割く"
+    if mark:
+        c.defense_score += 1
+    return f"🏗 体制対応の負荷: 成長率-{pt:g}pt（{dur}）— 現場リソースを管理対応に充当"
 
 
-def _growth_boost(c: Company, pt: float, quarters: int = 0) -> str:
-    """攻めの見返り：四半期成長率を pt ポイント引き上げる（quarters=0 で恒久）"""
+def _growth_boost(c: Company, pt: float, quarters: int = 0, mark: bool = False) -> str:
+    """事業投資の効果：四半期成長率を pt ポイント引き上げる（quarters=0 で恒久）。
+    mark=True のときだけ「🚀 事業投資」として経営資源配分メーターに数える。
+    （手抜き・先送りによる一時的な伸びは数えない＝戦略的な成長投資のみカウント）"""
     if quarters <= 0:
         c.growth_perm_delta += pt / 100.0
         dur = "恒久"
     else:
         c.growth_temp_mods.append([pt / 100.0, quarters])
         dur = f"{quarters}Q間"
-    c.offense_score += 1
-    return f"⚔ 攻めの見返り: 成長率+{pt:g}pt（{dur}）— 事業に全力投球"
+    if mark:
+        c.offense_score += 1
+    return f"🚀 成長への追い風: 成長率+{pt:g}pt（{dur}）"
 
 
 # ─────────────────────────────────────────────
@@ -466,7 +472,6 @@ def _implement_job_separation(company: Company) -> str:
     company.flags.embezzlement_risk_level = 0
     company.internal_control_score += 20
     company.quarterly_burn += 3.0  # 担当者追加コスト
-    company.defense_score += 1
     return ("🔒 出納と記帳の職務分掌を実施しました。\n"
             f"   経理担当者を増員し、承認フローも整備。コスト¥3百万円/Q増加。\n"
             f"   内部統制スコア+20 / 横領リスクゼロに\n"
@@ -520,10 +525,9 @@ def _thorough_antisocial_check(company: Company) -> str:
     company.compliance_score += 25
     company.has_antisocial_system = True
     company.revenue.recognized *= 0.95   # 問題取引先の契約解除で売上減
-    company.defense_score += 1
     return ("✅ 全取引先の反社会的勢力排除チェックを実施しました。\n"
             f"   専門調査機関に依頼し、問題のある取引先を契約解除。\n"
-            f"   コンプライアンス+25 / 🛡 守りの代償: 取引先解約で売上-5%（一時）\n"
+            f"   コンプライアンス+25 / 取引先解約で売上-5%（一時）\n"
             f"   ▶ 実務: 東証上場規程では反社会的勢力との関係を遮断することが\n"
             f"     上場審査の必要条件です。主幹事証券会社も厳しくチェックします。")
 
@@ -532,7 +536,6 @@ def _cheap_vendor_antisocial(company: Company) -> str:
     company.flags.antisocial_vendor = True
     company.flags.antisocial_bomb_timer = random.randint(3, 8)
     company.quarterly_burn -= 5.0  # 安い仕入先なのでコスト減
-    company.offense_score += 1
     return (f"💰 コスト重視で取引先を選定。仕入コスト¥5百万円/Q削減。\n"
             f"   ⚠️  {company.flags.antisocial_bomb_timer}Q後に反社チェック不備の爆弾が仕掛けられました！\n"
             f"   ▶ 安価な取引先は身元確認が不十分なことがあります。（リスク非表示）")
@@ -630,7 +633,6 @@ def _appoint_outside_director(company: Company) -> str:
     # 内定（CEO決断）は今期行うが、正式就任・ガバナンス効果は総会承認後の翌四半期に発現。
     company.agm_deferred_outside_director = True
     company.quarterly_burn += 4.0  # 役員報酬は内定・報酬総額承認後から発生
-    company.defense_score += 1
     return ("🏛️  独立社外取締役・社外監査役の候補者を内定しました。\n"
             f"   上場会社向けガバナンス経験のある弁護士・公認会計士を候補に選出しました。\n"
             f"   ▶ 【会社法第329条】取締役・監査役の選任は株主総会の普通決議が必要です。\n"
@@ -876,7 +878,7 @@ def _implement_jsox_early(company: Company) -> str:
     company.governance_score       += 15
     company.quarterly_burn         += 5.0   # 内部統制チーム人件費（継続）
     company.has_internal_control_system = True
-    _tax_msg = _growth_tax(company, 2)      # 統制された組織の重さ（恒久）
+    _tax_msg = _growth_tax(company, 2, mark=True)   # 戦略的な体制投資（恒久負荷）
     return ("📋 内部統制システム（J-SOX準備）を本格的に構築しました。\n"
             f"   内部統制スコア+25 / ガバナンス+15\n   {_tax_msg}\n"
             f"   ▶ 内部統制チームの人件費として¥5M/Q の継続コストが発生します。\n"
@@ -1333,14 +1335,14 @@ def _aggressive_sales_early(company: Company) -> str:
     if random.random() < 0.60:
         company.revenue.recognized *= 1.25
         company.cash -= 10.0
-        _boost_msg = _growth_boost(company, 3)   # 営業体制の拡大が定着（恒久）
+        _boost_msg = _growth_boost(company, 3, mark=True)   # 戦略的な事業投資（恒久）
         company.flags.total_risk_score += 5      # 急拡大の歪み（与信・品質管理）
         return ("📈 積極的な新規顧客開拓が実を結びました！売上+25%\n"
                 f"   ¥10M投資 / 新規顧客獲得に成功\n   {_boost_msg} / リスクスコア+5（急拡大の歪み）\n"
                 "   ▶ IPO審査では2期以上の継続的売上成長（年率20%以上）が高評価です。")
     else:
         company.cash -= 10.0
-        _boost_msg = _growth_boost(company, 1)
+        _boost_msg = _growth_boost(company, 1, mark=True)
         return ("📉 新規顧客開拓への投資は今期は成果が出ませんでした。¥10M支出\n"
                 f"   売上変化なし（次期以降に期待） / {_boost_msg}")
 
@@ -1348,7 +1350,7 @@ def _aggressive_sales_early(company: Company) -> str:
 def _steady_sales_early(company: Company) -> str:
     company.revenue.recognized *= 1.10
     company.employee_morale    += 5
-    _boost_msg = _growth_boost(company, 1)
+    _boost_msg = _growth_boost(company, 1, mark=True)
     return ("📊 既存顧客深耕で着実に成長しました。売上+10%\n"
             f"   従業員士気+5 / 安定した事業運営 / {_boost_msg}\n"
             "   ▶ 継続的な売上成長の実績はIPO審査での評価に直結します。")
@@ -1407,7 +1409,7 @@ def _sprint_sales_late(company: Company) -> str:
         company.revenue.recognized *= 1.20
         company.cash -= 15.0
         company.investor_trust += 10
-        _boost_msg = _growth_boost(company, 2)
+        _boost_msg = _growth_boost(company, 2, mark=True)
         company.flags.total_risk_score += 8   # 駆け込み計上への監査の眼
         return ("📈 申請直前の集中投資が功を奏しました！売上+20% / 投資家信頼+10\n"
                 f"   {_boost_msg} / リスクスコア+8（駆け込み計上への監査の眼）\n"
@@ -1422,7 +1424,7 @@ def _sprint_sales_late(company: Company) -> str:
 def _steady_sales_late(company: Company) -> str:
     company.revenue.recognized *= 1.08
     company.investor_trust     += 5
-    _boost_msg = _growth_boost(company, 1)
+    _boost_msg = _growth_boost(company, 1, mark=True)
     return ("📊 堅実な成長を継続しました。売上+8% / 投資家信頼+5\n"
             f"   {_boost_msg}\n"
             "   ▶ 安定した業績は上場審査での信頼性を高めます。")
@@ -5104,7 +5106,7 @@ def _org_conflict_full_push(company: Company) -> str:
     company.internal_control_score = min(100, company.internal_control_score + 15)
     company.compliance_score = min(100, company.compliance_score + 10)
     company.cash -= 5.0
-    _tax_msg = _growth_tax(company, 2)      # 営業の機動力低下（恒久）— 管理優先の組織風土
+    _tax_msg = _growth_tax(company, 2, mark=True)   # 管理優先の経営判断＝体制投資（恒久負荷）
     return ("🏢 社長のリーダーシップで全社IPOプロジェクトを発足しました！（¥5M投下）\n\n"
             "   ・全部門長参加のIPO推進委員会を毎月開催\n"
             "   ・営業部門に専任の管理担当者を配置\n"
@@ -5140,7 +5142,7 @@ def _org_conflict_backoff(company: Company) -> str:
     company.employee_morale = min(100, company.employee_morale + 5)
     company.internal_control_score = max(0, company.internal_control_score - 8)
     company.flags.total_risk_score += 10
-    _boost_msg = _growth_boost(company, 2, 2)   # 営業全開
+    _boost_msg = _growth_boost(company, 2, 2, mark=True)   # 営業優先の経営判断＝事業投資
     return ("⏭️  営業成長を優先し、管理強化は後回しにしました。\n\n"
             "   ▶ 従業員士気+5（現場は歓迎）\n"
             f"   ▶ 内部統制-8 / リスクスコア+10 / {_boost_msg}\n\n"
