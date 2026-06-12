@@ -3807,7 +3807,8 @@ class GameSession:
         mktcap_req = {"growth": 500, "standard": 1000, "prime": 25000}[mkt]  # 百万円
         net_assets_req = {"growth": 0, "standard": 1, "prime": 5000}[mkt]  # 百万円 (0=no req)
         profit_req_annual = {"growth": 0, "standard": 100, "prime": 2500}[mkt]  # 百万円/年 (0=no req)
-        audit_years = {"growth": 1, "standard": 2, "prime": 2}[mkt]
+        # 全市場とも直前2期分の監査証明が必要（監修済みQ2と整合）
+        audit_years = {"growth": 2, "standard": 2, "prime": 2}[mkt]
 
         # Net assets approximation (cash as proxy)
         net_assets_ok = True if net_assets_req == 0 else c.cash >= net_assets_req
@@ -3819,7 +3820,7 @@ class GameSession:
         formal_checks = [
             (f"👥 株主数 {shareholder_req}人以上", c.shareholder_count >= shareholder_req, f"現在{c.shareholder_count}人"),
             (f"🏢 流通株式時価総額 {mktcap_label}円以上", c.market_cap_million >= mktcap_req, f"現在¥{c.market_cap_million:.0f}M"),
-            (f"📋 監査契約締結済み（{'1' if audit_years == 1 else '2'}期監査）", c.has_audit_contract, f"{'1' if audit_years == 1 else '2'}期間の監査証明が必要"),
+            (f"📋 監査契約締結済み（{audit_years}期監査）", c.has_audit_contract, f"直前{audit_years}期分の監査証明が必要"),
             ("🏦 主幹事証券会社選定済み", c.has_underwriter, "引受契約が必要"),
             ("🏦 主幹事引受事前審査合格", c.underwriter_pre_exam_passed, "主幹事証券の事前審査が未合格"),
         ]
