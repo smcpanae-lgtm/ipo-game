@@ -201,7 +201,8 @@ class Company:
     market_momentum: float = 0.0         # 直近の変化（モメンタム）
 
     # ── 🏁 上場レース ──
-    rival_listed_first: bool = False     # ライバルに先に上場された（評価-15%）
+    rival_listed_first: bool = False     # ライバルに先に上場された
+    rival_discount: float = 0.85         # 先行上場ディスカウント（山頂目前なら0.93に軽減）
 
     # フラグ
     flags: Flags = field(default_factory=Flags)

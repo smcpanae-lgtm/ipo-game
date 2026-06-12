@@ -29,7 +29,7 @@ from engine.finance import (
 from engine.roulette import tick_bombs, audit_contract_roulette, roll
 from scenario.ipo_knowledge import get_available_events, get_fresh_events, shareholder_meeting_event, create_agm_event
 from scenario.world_events import get_fresh_world_events, roll_world_event
-from models.events import Choice
+from models.events import Choice, GameEvent
 
 
 # ══════════════════════════════════════════════
@@ -1893,6 +1893,137 @@ class GameSession:
             self._add(story_panel(body, "📋 定款変更 登記完了", "cyan"))
             self._score_change_reasons.append("📄 定款変更登記完了：コンプラ+8")
 
+    def _map_jump(self, steps: int, label: str = "🚀 一気に前進！"):
+        """🗺 ワールドマップ：コマを前進させる（切り札等のポジティブ演出）"""
+        cur = getattr(self, "_map_pos", 0)
+        to = min(MAP_GOAL_TILE - 1, cur + steps)
+        if to <= cur:
+            return
+        self._map_pos = to
+        self._add(map_move_html(cur, to, label, **self._rival_static()), "map_move")
+
+    # ──────────────────────────────────────────
+    # 🃏 社長の切り札（1ゲーム1回・逆転カード）
+    # ──────────────────────────────────────────
+    def _trump_media(self, c: Company) -> str:
+        self._trump_used = True
+        c.cash -= 30.0
+        c.investor_trust = min(100, c.investor_trust + 10)
+        c.market_index = min(95.0, getattr(c, "market_index", 55.0) + 8.0)
+        self._map_jump(2, "📰 知名度急上昇 — 2マス前進！")
+        return (
+            "📰 全国メディアでの戦略的広報キャンペーンを展開しました。（¥30M）\n\n"
+            "   テレビ・経済誌・SNSで自社の成長ストーリーが話題に。\n"
+            "   ▶ 投資家信頼+10 / 市況指数+8 / 🗺 2マス前進\n\n"
+            "   ▶ 【実務】上場前の広報は「上場準備に関する事実の公表」に\n"
+            "     とどめる必要があります（推奨・勧誘と受け取られる表現はNG）。\n"
+            "     計画的なIR・PR戦略は知名度と公募需要の形成に有効です。"
+        )
+
+    def _trump_alliance(self, c: Company) -> str:
+        self._trump_used = True
+        c.growth_perm_delta = getattr(c, "growth_perm_delta", 0.0) + 0.02
+        c.offense_score = getattr(c, "offense_score", 0) + 1
+        c.flags.total_risk_score += 8
+        self._map_jump(3, "🤝 大型提携発表 — 3マス前進！")
+        return (
+            "🤝 業界大手との資本業務提携を電撃発表しました。\n\n"
+            "   販路・技術の両面で成長が加速します。\n"
+            "   ▶ 成長率+2pt（恒久） / 🚀 事業投資+1 / 🗺 3マス前進\n"
+            "   ▶ リスクスコア+8\n\n"
+            "   ▶ 【実務】資本提携先との取引は「関連当事者取引」として\n"
+            "     上場審査で整理・開示が求められます。提携の経済合理性と\n"
+            "     取引条件の妥当性を説明できる準備が必要です。"
+        )
+
+    def _trump_headhunt(self, c: Company) -> str:
+        self._trump_used = True
+        rv = getattr(self, "_rival", None)
+        r_from = rv["pos"] if rv else -1
+        if rv:
+            rv["pos"] = max(0, rv["pos"] - 3)
+        cur = getattr(self, "_map_pos", 0)
+        to = min(MAP_GOAL_TILE - 1, cur + 1)
+        self._map_pos = to
+        self._add(map_move_html(cur, to, "🕵 引き抜き成功 — ライバル3マス後退！",
+                                r_from=r_from, r_to=(rv["pos"] if rv else -1),
+                                r_fall=True, r_name=(rv["name"] if rv else "")), "map_move")
+        if _rand.random() < 0.50:
+            c.flags.total_risk_score += 12
+            c.investor_trust = max(0, c.investor_trust - 10)
+            c.employee_morale = max(0, c.employee_morale - 5)
+            return (
+                "🕵 ライバルのキーパーソン引き抜きに成功——しかし発覚しました。\n\n"
+                f"   {rv['name'] if rv else 'ライバル'}のCTOを獲得し、相手の上場準備は大きく後退。\n"
+                "   ▶ 🗺 自社1マス前進 / ライバル3マス後退\n\n"
+                "   ⚠ しかし業界紙に「強引な引き抜き」と報じられ紛争に発展。\n"
+                "   ▶ リスクスコア+12 / 投資家信頼-10 / 従業員士気-5\n"
+                "   ▶ 【実務】競業避止義務・秘密保持契約をめぐる紛争は\n"
+                "     上場審査の「係争リスク」として開示・説明が求められます。"
+            )
+        return (
+            "🕵 ライバルのキーパーソン引き抜きに成功しました。\n\n"
+            f"   {rv['name'] if rv else 'ライバル'}のCTOを獲得。相手の上場準備は大きく後退しました。\n"
+            "   ▶ 🗺 自社1マス前進 / ライバル3マス後退\n"
+            "   ▶ 紛争にもならず、クリーンな移籍として処理されました。\n\n"
+            "   ▶ 【実務】人材獲得自体は正当な競争ですが、競業避止義務・\n"
+            "     営業秘密の持ち込みには細心の注意が必要です。"
+        )
+
+    def _trump_pass(self, c: Company) -> str:
+        return (
+            "⚖ 切り札は使わず、正攻法を貫くことにしました。\n\n"
+            "   「小手先の逆転より、審査に耐える体制づくりだ。」\n"
+            "   ▶ 切り札は温存されました。レース状況次第で再び検討できます。"
+        )
+
+    def _build_trump_event(self) -> GameEvent:
+        rv = getattr(self, "_rival", None)
+        rname = rv["name"] if rv else "ライバル社"
+        rpos = rv["pos"] if rv else 0
+        mypos = getattr(self, "_map_pos", 0)
+        return GameEvent(
+            id="trump_card",
+            title=f"⚡ 緊急取締役会 — 社長の切り札（1回限り）",
+            description=(
+                f"CFOが緊急の取締役会を招集しました。\n\n"
+                f"「社長、{rname}が山頂に迫っています（相手{rpos}マス目／当社{mypos}マス目）。\n"
+                f"先に上場されれば、当社の評価額は15%下がります。\n\n"
+                f"ここで使える『切り札』は一度きり。どれも実務上のリスクと\n"
+                f"隣り合わせですが——decision time です、社長。」\n\n"
+                f"【ポイント】逆転手段にもそれぞれ審査上の論点（広報規制・関連当事者・\n"
+                f"人材紛争）が付きまといます。リスクとリターンを天秤にかけてください。"
+            ),
+            choices=[
+                Choice(
+                    label="A. 📰 メディア戦略・知名度キャンペーン（¥30M）",
+                    description="全国メディアで成長ストーリーを発信。確実だが効果は中程度",
+                    immediate_effect=lambda c: self._trump_media(c),
+                    risk_hint="ローリスク：自社+2マス / 投資家信頼+10 / 市況+8",
+                ),
+                Choice(
+                    label="B. 🤝 大型アライアンス電撃発表（資本業務提携）",
+                    description="業界大手と提携し成長を加速。関連当事者取引の論点が増える",
+                    immediate_effect=lambda c: self._trump_alliance(c),
+                    risk_hint="ミドルリスク：自社+3マス / 成長+2pt恒久 / リスク+8",
+                ),
+                Choice(
+                    label="C. 🕵 ライバルのキーパーソン引き抜き",
+                    description="相手の上場準備を直接遅らせる。ただし50%で紛争に発展",
+                    immediate_effect=lambda c: self._trump_headhunt(c),
+                    risk_hint="ハイリスク：ライバル-3マス＋自社+1。50%で紛争（リスク+12等）",
+                ),
+                Choice(
+                    label="D. ⚖ 正攻法を貫く（切り札を温存）",
+                    description="今は使わない。条件を満たせば後のターンで再検討できる",
+                    immediate_effect=lambda c: self._trump_pass(c),
+                ),
+            ],
+            min_n_period=-3,
+            max_n_period=0,
+            one_shot=True,
+        )
+
     def _rival_static(self) -> dict:
         """🏁 マップ演出にライバルを静止表示するためのパラメータ"""
         rv = getattr(self, "_rival", None)
@@ -1971,13 +2102,22 @@ class GameSession:
                 if _rv["pos"] >= MAP_GOAL_TILE:
                     _rv["listed"] = True
                     c.rival_listed_first = True
+                    # 自社が山頂近く（20マス以上）まで迫っていれば影響は限定的（-15%→-7%）
+                    _near_summit = getattr(self, "_map_pos", 0) >= 20
+                    c.rival_discount = 0.93 if _near_summit else 0.85
                     mkt_lbl = {"growth": "グロース", "standard": "スタンダード", "prime": "プライム"}.get(self.target_market, "グロース")
                     _r_news = (
                         f"📰 <strong>【速報】{esc(_rv['name'])}、東証{esc(mkt_lbl)}市場に上場！</strong><br><br>"
                         f"ライバルに先を越されました。同業IPOの新鮮味が薄れ、<br>"
                         f"投資家の関心が分散します。<br><br>"
-                        f"▶ <strong>御社の時価総額評価に -15% のディスカウント</strong>が掛かります。<br>"
-                        f"▶ それでも山頂は待っています。自社のペースで登り切りましょう。"
+                        + (
+                            f"▶ ただし御社も山頂目前（{getattr(self, '_map_pos', 0)}マス目）。"
+                            f"市場は「次はこの会社」と認知しており、<br>"
+                            f"<strong>ディスカウントは -7% に軽減</strong>されます。<br>"
+                            if _near_summit else
+                            f"▶ <strong>御社の時価総額評価に -15% のディスカウント</strong>が掛かります。<br>"
+                        )
+                        + f"▶ それでも山頂は待っています。自社のペースで登り切りましょう。"
                     )
             _r_to = _rv["pos"]
 
@@ -2138,6 +2278,17 @@ class GameSession:
                     _ge.fired = False
                     ipo_events.insert(0, _ge)
                     self._growth_event_done_period = t.n_period
+
+        # 🃏 社長の切り札：ライバルに先行されそうな時の1回限りの逆転カード
+        #   条件: ライバルが山頂まで残り8マス以内 or 5マス以上先行されている
+        #   「温存」した場合は2Q後に再提示され得る
+        if (not getattr(self, "_trump_used", False)
+                and _rv is not None and not _rv["listed"]):
+            _trump_cond = (_rv["pos"] >= 18) or (_rv["pos"] - getattr(self, "_map_pos", 0) >= 5)
+            _trump_last = getattr(self, "_trump_last_offer", -99)
+            if _trump_cond and (_tidx - _trump_last) >= 2:
+                self._trump_last_offer = _tidx
+                ipo_events.insert(0, self._build_trump_event())
 
         # ── Q1: 🎪バナー + AGM議決結果表示 ──
         # 日本の定時株主総会は期末後3ヶ月以内（≒翌期Q1）に開催される
@@ -5262,7 +5413,8 @@ class GameSession:
                     f'<span style="color:{"#ff4444" if _rv["listed"] else ("#ff8844" if _rv["pos"] > _mp else "#00cc66")}">'
                     + ("🔔 上場済み！" if _rv["listed"] else f'{_rv["pos"]}/26マス')
                     + '</span></div>'
-                    + (f'<div style="font-size:10px;color:#ff8866;text-align:center">⚠ 評価-15%（先行上場の影響）</div>'
+                    + (f'<div style="font-size:10px;color:#ff8866;text-align:center">'
+                       f'⚠ 評価-{round((1 - getattr(c, "rival_discount", 0.85)) * 100)}%（先行上場の影響）</div>'
                        if getattr(c, "rival_listed_first", False) else ''))))(),
             '<div class="sb-sec">── スコア ───────────</div>',
             srow("内統",     min(100, max(0, c.internal_control_score))),
