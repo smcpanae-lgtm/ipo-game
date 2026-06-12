@@ -29,6 +29,7 @@ from engine.finance import (
 from engine.roulette import tick_bombs, audit_contract_roulette, roll
 from scenario.ipo_knowledge import get_available_events, get_fresh_events, shareholder_meeting_event, create_agm_event
 from scenario.world_events import get_fresh_world_events, roll_world_event
+from scenario.exam_questions import EXAM_QUESTIONS
 from models.events import Choice, GameEvent
 
 
@@ -837,6 +838,7 @@ class Phase:
     EVENT_CHOICE = "event_choice"
     ALT_CHOICE = "alt_choice"
     FORTUNE_CHOICE = "fortune_choice"   # 突発イベント選択
+    EXAM_BATTLE = "exam_battle"         # 審査ボス戦（審査官との質疑応答）
     ENDING = "ending"
 
 
@@ -908,6 +910,12 @@ class GameSession:
         self._force_outside_director_n1: bool = False
         # マクロショック（パンデミック等）が強行された場合の情報
         self._macro_shock_active: dict = {}   # {"name": "...", "pass_prob": 0.2, "fail_reason": "..."}
+        # 審査ボス戦（審査官との質疑応答）の状態
+        self._exam_qs: list = []          # 出題された問題（dictのリスト）
+        self._exam_idx: int = 0           # 現在の問題番号
+        self._exam_gauge: int = 50        # 審査官の懸念ゲージ（0-100、低いほど良い）
+        self._exam_correct: int = 0       # 正解数
+        self._tse_pass_total: tuple = (0, 0)   # 書類審査の (クリア数, 総項目数)
 
     def _add(self, html_content: str, item_type: str = "normal"):
         self._queue.append({"html": html_content, "type": item_type})
@@ -1010,6 +1018,8 @@ class GameSession:
                 self._run_tse_verdict()
             elif self._next_action == "tse_exam":
                 self._run_tse_exam()
+            elif self._next_action == "exam_battle":
+                self._start_exam_battle()
 
         elif self.phase == Phase.EVENT_CHOICE:
             if value == "__ADVISOR__":
@@ -1028,6 +1038,12 @@ class GameSession:
                 self._apply_alt(valid.index(value.upper()))
             else:
                 self._add(f'<div class="err-msg">  {" / ".join(valid)} のいずれかを選んでください</div>')
+
+        elif self.phase == Phase.EXAM_BATTLE:
+            if value.upper() in ("A", "B", "C", "D"):
+                self._answer_exam_question("ABCD".index(value.upper()))
+            else:
+                self._add('<div class="err-msg">  A / B / C / D のいずれかを選んでください</div>')
 
         elif self.phase == Phase.FORTUNE_CHOICE:
             if value == "__ADVISOR__":
@@ -3902,10 +3918,205 @@ class GameSession:
         total_count = len(formal_checks) + len(all_substance)
         fail_count = len(issues)
 
+        self._tse_pass_total = (pass_count, total_count)
+
+        # ── 書類審査 → 審査官との質疑応答（ボス戦）へ ──
+        self._add(story_panel(
+            "書類審査が終わりました。続いて、審査官との<strong>質疑応答（面談審査）</strong>が行われます。<br><br>"
+            "審査官は社長であるあなた自身に、上場制度・内部管理体制への理解を直接問います。<br>"
+            "回答内容次第で審査官の心証（懸念ゲージ）が変動し、<strong>最終判定に影響します</strong>。<br><br>"
+            "🟢 懸念が十分に解消 → 指摘事項1件が条件付きで容認されることも<br>"
+            "🔴 懸念が増大 → 指摘事項が追加され、審査不通過のリスクが高まる",
+            "👨‍⚖️ 審査官との質疑応答へ", "red"
+        ))
+        self.phase = Phase.CONTINUE
+        self._next_action = "exam_battle"
+        self._ph("► 質疑応答に進む...")
+
+    # ──────────────────────────────────────────
+    # TSE審査 ボス戦：審査官との質疑応答
+    # ──────────────────────────────────────────
+    EXAM_BATTLE_QUESTIONS = 5   # 1回の審査で出題される問題数
+
+    def _exam_q_text(self, q) -> str:
+        v = q["question"]
+        if isinstance(v, dict):
+            return v.get(self.target_market, next(iter(v.values())))
+        return v
+
+    def _exam_q_answer(self, q) -> int:
+        v = q["answer"]
+        if isinstance(v, dict):
+            return v.get(self.target_market, next(iter(v.values())))
+        return v
+
+    def _exam_gauge_html(self) -> str:
+        g = max(0, min(100, self._exam_gauge))
+        if g < 35:
+            color, face = "#44dd66", "😌"
+        elif g < 65:
+            color, face = "#ffaa44", "🤨"
+        else:
+            color, face = "#ff5555", "😠"
+        return (
+            f'<div style="margin:10px 0;padding:10px 14px;background:rgba(0,0,0,.35);'
+            f'border:1px solid #334;border-radius:8px">'
+            f'<div style="font-size:11px;color:#99a;letter-spacing:1px;margin-bottom:6px">'
+            f'{face} 審査官の懸念ゲージ：<span style="color:{color};font-weight:700">{g}</span> / 100'
+            f'<span style="color:#667;margin-left:10px">（低いほど良い ── 20以下で懸念解消 / 65以上で指摘追加）</span></div>'
+            f'<div style="height:12px;background:#181828;border-radius:6px;overflow:hidden">'
+            f'<div style="width:{g}%;height:100%;background:{color}"></div></div>'
+            f'</div>'
+        )
+
+    def _start_exam_battle(self):
+        c = self.company
+        # 連動問題：プレイ履歴のフラグに応じて必ず出題する
+        trig = {
+            "no_cost_accounting": bool(getattr(c.flags, "no_cost_accounting", False)
+                                       or getattr(c.flags, "no_inventory_count", False)),
+            "unpaid_overtime": bool(getattr(c.flags, "unpaid_overtime", False)),
+        }
+        triggered = [q for q in EXAM_QUESTIONS if q["trigger"] != "common" and trig.get(q["trigger"], False)]
+        common = [q for q in EXAM_QUESTIONS if q["trigger"] == "common"]
+        _rand.shuffle(common)
+        selected = (triggered + common)[: self.EXAM_BATTLE_QUESTIONS]
+        _rand.shuffle(selected)
+
+        self._exam_qs = selected
+        self._exam_idx = 0
+        self._exam_gauge = 50
+        self._exam_correct = 0
+
+        self._add(
+            '<div class="tse-exam-header">'
+            '<div class="tse-exam-label">⚔️ FINAL EXAMINATION</div>'
+            '<div class="tse-exam-title">審査官との質疑応答</div>'
+            f'<div class="tse-exam-market">全{len(selected)}問 ── 社長ご自身の言葉でお答えください</div>'
+            '</div>'
+        )
+        self._add(story_panel(
+            "「それでは社長、いくつか直接お伺いします」<br><br>"
+            "審査官が書類から目を上げ、あなたをまっすぐ見つめました。<br>"
+            "ここからは顧問の助言なし。<strong>4年間の上場準備で学んだ知識</strong>が試されます。",
+            "👨‍⚖️ 審査官", "red"
+        ))
+        self._add(self._exam_gauge_html())
+        self._show_exam_question()
+
+    def _show_exam_question(self):
+        from types import SimpleNamespace
+        q = self._exam_qs[self._exam_idx]
+        no = self._exam_idx + 1
+        total = len(self._exam_qs)
+        linked = "" if q["trigger"] == "common" else (
+            '<span style="color:#ff8866;font-size:11px;margin-left:8px">'
+            '⚠ 御社の経営判断に関わる質問</span>'
+        )
+        self._add(
+            f'<div style="margin:14px 0 6px;padding:14px 16px;'
+            f'background:linear-gradient(135deg,#16101e,#1e1428);'
+            f'border:2px solid #8855cc;border-radius:10px">'
+            f'<div style="font-size:11px;color:#aa88dd;letter-spacing:2px;margin-bottom:6px">'
+            f'👨‍⚖️ 審査官の質問 {no} / {total}　【{esc(q["title"])}】{linked}</div>'
+            f'<div style="font-size:15px;color:#eee;font-weight:600;line-height:1.7">'
+            f'{esc(self._exam_q_text(q))}</div>'
+            f'</div>'
+        )
+        choices = [SimpleNamespace(label=t, description="", profit_hint="", risk_hint="")
+                   for t in q["choices"]]
+        self._add(choices_html(choices, "ABCD"))
+        self.phase = Phase.EXAM_BATTLE
+        self._ph("► 回答をダブルクリックで選択...")
+
+    def _answer_exam_question(self, idx: int):
+        q = self._exam_qs[self._exam_idx]
+        ans = self._exam_q_answer(q)
+        correct = (idx == ans)
+        self._add(f'<div class="ceo-decision">👤 社長の回答：{"ABCD"[idx]}. {esc(q["choices"][idx])}</div>')
+
+        if correct:
+            self._exam_correct += 1
+            self._exam_gauge = max(0, self._exam_gauge - 15)
+            head = (
+                '<div style="font-size:16px;font-weight:800;color:#44dd66;margin-bottom:6px">'
+                '⭕ 正解 ── 審査官は静かに頷いた</div>'
+            )
+            border = "#44dd66"
+        else:
+            self._exam_gauge = min(100, self._exam_gauge + 15)
+            head = (
+                '<div style="font-size:16px;font-weight:800;color:#ff5555;margin-bottom:6px">'
+                '❌ 不正解 ── 審査官の眉がぴくりと動いた</div>'
+                f'<div style="font-size:13px;color:#ffaa88;margin-bottom:6px">'
+                f'正しくは：{"ABCD"[ans]}. {esc(q["choices"][ans])}</div>'
+            )
+            border = "#ff5555"
+        self._add(
+            f'<div style="margin:8px 0;padding:12px 14px;background:rgba(0,0,0,.3);'
+            f'border:1px solid {border};border-radius:8px">'
+            f'{head}'
+            f'<div style="font-size:12px;color:#bbc;line-height:1.7">'
+            f'<span style="color:#88aaff;font-weight:700">📖 解説：</span>{esc(q["explanation"])}</div>'
+            f'</div>'
+        )
+        self._add(self._exam_gauge_html())
+
+        self._exam_idx += 1
+        if self._exam_idx < len(self._exam_qs):
+            self._show_exam_question()
+        else:
+            self._finish_exam_battle()
+
+    def _finish_exam_battle(self):
+        issues = self._tse_pending_issues
+        g = self._exam_gauge
+        total = len(self._exam_qs)
+        correct = self._exam_correct
+
+        # ── 質疑応答の結果を審査に反映 ──
+        if g >= 65:
+            issues.append(f"⑩ 審査質疑応答 — 経営者の上場制度理解に重大な懸念（{correct}/{total}問正解）")
+            self._add(story_panel(
+                f"質疑応答の結果：<strong>{correct}/{total}問 正解</strong>（懸念ゲージ {g}）<br><br>"
+                "「……社長ご自身の制度理解に、重大な懸念が残ると言わざるを得ません」<br><br>"
+                "▶ <strong>指摘事項が1件追加</strong>されました。",
+                "😠 審査官の懸念が増大", "red"
+            ))
+        elif g <= 20:
+            relieved = ""
+            for i, it in enumerate(issues):
+                if "反社" not in it and "監査契約" not in it:
+                    relieved = issues.pop(i)
+                    break
+            if relieved:
+                self._add(story_panel(
+                    f"質疑応答の結果：<strong>{correct}/{total}問 正解</strong>（懸念ゲージ {g}）<br><br>"
+                    "「社長ご自身が制度を深く理解されていますね。これなら上場後の体制運用も期待できます」<br><br>"
+                    f"▶ 的確な説明により、指摘事項<strong>「{esc(relieved)}」</strong>の懸念が条件付きで解消されました。",
+                    "😌 審査官の懸念が解消", "green"
+                ))
+            else:
+                self._add(story_panel(
+                    f"質疑応答の結果：<strong>{correct}/{total}問 正解</strong>（懸念ゲージ {g}）<br><br>"
+                    "「完璧です。制度をご自身の言葉で語れる経営者は、そう多くありません」",
+                    "😌 審査官が深く頷いた", "green"
+                ))
+        else:
+            self._add(story_panel(
+                f"質疑応答の結果：<strong>{correct}/{total}問 正解</strong>（懸念ゲージ {g}）<br><br>"
+                "「……承知しました。ご回答は審査記録に残させていただきます」<br>"
+                "審査官は表情を変えずに書類へ目を戻しました。",
+                "🤨 質疑応答 終了", "yellow"
+            ))
+
+        # ── 最終判定前のプレビュー ──
+        pass_count, total_count = getattr(self, "_tse_pass_total", (0, 0))
+        fail_count = len(issues)
         if fail_count == 0:
             verdict_color = "#00dd88"
             verdict_icon = "🟢"
-            verdict_text = f"全{total_count}項目クリア — 審査官が最終承認の判断を下そうとしています"
+            verdict_text = "懸念事項はすべて解消 — 審査官が最終承認の判断を下そうとしています"
         elif fail_count <= 2:
             verdict_color = "#ffaa44"
             verdict_icon = "🟡"
@@ -5549,6 +5760,7 @@ class GameSession:
                 "next_event":   "次のイベントへ →",
                 "advance_turn": "ターンを進める →",
                 "tse_verdict":  "🔍 審査結果を確認する →",
+                "exam_battle":  "👨‍⚖️ 質疑応答に進む →",
             }
             lbl = lbl_map.get(self._next_action, "次へ →")
             return [{"label": lbl, "value": "", "style": "continue"}]
@@ -5565,6 +5777,10 @@ class GameSession:
         if self.phase == Phase.FORTUNE_CHOICE:
             # 選択肢カード自体がクリック可能
             return [{"label": "💡 IPO先生に相談", "value": "__ADVISOR__", "style": "advisor"}]
+
+        if self.phase == Phase.EXAM_BATTLE:
+            # 審査本番のため IPO先生への相談は不可。回答カード自体がクリック可能
+            return []
 
         if self.phase == Phase.ENDING:
             return [{"label": "🔄 もう一度プレイ", "value": "", "style": "primary"}]
