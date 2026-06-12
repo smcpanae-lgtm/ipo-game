@@ -1882,7 +1882,7 @@ def shareholder_meeting_event(company: Company, n_period: int) -> str:
             company.investor_trust += 8
             results.append(
                 "💬 VC代表・鈴木氏（株主質問タイム）:\n"
-                "   「素晴らしい進捗です。N期（来期）の上場申請に向けて\n"
+                "   「素晴らしい進捗です。N期（当期）の上場申請に向けて\n"
                 "   私たちVC一同、全力でバックアップします。\n"
                 "   主幹事証券との連携も順調と聞いています。ぜひ鐘を鳴らしてください！」\n"
                 "   ▶ 投資家信頼+8（VCが上場への期待を表明）"
@@ -2148,7 +2148,7 @@ def create_agm_event(company: Company, n_period: int) -> "GameEvent":
                 "   N-2期中に選任を完了できず、N-1期（直前期）の今になっても\n"
                 "   独立社外取締役が不在とは、東証審査官への説明が困難です。\n"
                 "   本総会後、直ちに臨時株主総会を開催し、今期中に必ず選任を\n"
-                "   完了させてください。N期（来期）の上場申請には間に合わせてください。」\n"
+                "   完了させてください。N期（当期）の上場申請には間に合わせてください。」\n"
                 "   ▶ 投資家信頼-25（ガバナンス欠陥・上場申請リスクとして強く警告）"
             )
 
@@ -2165,7 +2165,7 @@ def create_agm_event(company: Company, n_period: int) -> "GameEvent":
                 c.investor_trust = min(100, c.investor_trust + 8)
                 results.append(
                     "💬 VC代表・鈴木氏（株主質問タイム）:\n"
-                    "   「素晴らしい進捗です。N期（来期）の上場申請に向けて\n"
+                    "   「素晴らしい進捗です。N期（当期）の上場申請に向けて\n"
                     "   私たちVC一同、全力でバックアップします！」\n"
                     "   ▶ 投資家信頼+8（VCが上場への期待を表明）"
                 )
@@ -3865,9 +3865,10 @@ def _insider_full_system(company: Company) -> str:
     company.internal_control_score += 10
     company.investor_trust += 8
     company.has_insider_prevention = True
+    company.defense_score = getattr(company, "defense_score", 0) + 1   # 🏗 現場負荷（全社研修・事前承認運用）
     return ("🔐 インサイダー取引防止規程を制定・全社研修を実施しました。\n"
             f"   重要事実の管理責任者を指定し、役職員の自社株売買を事前承認制に。\n"
-            f"   コンプライアンス+20 / 内部統制+10 / 投資家信頼+8\n"
+            f"   コンプライアンス+20 / 内部統制+10 / 投資家信頼+8 / 🏗 現場負荷+1\n"
             f"   ▶ 実務: 金商法166条違反は刑事罰。上場後の最頻発コンプライアンス違反の一つ。")
 
 
@@ -5310,11 +5311,12 @@ def _customer_diversification(c: Company) -> str:
     c.has_customer_diversification = True
     c.investor_trust += 12
     c.flags.total_risk_score -= 5
+    c.offense_score = getattr(c, "offense_score", 0) + 1   # 🚀 事業投資（新規顧客開拓）
     return ("🏢 顧客分散戦略を実行しました。\n\n"
             "   ・新規顧客開拓により売上上位3社依存度を50%未満に改善\n"
             "   ・業種・規模の異なる顧客層を確保\n"
             "   ・主要顧客との長期契約も並行締結\n\n"
-            "   投資家信頼+12 / リスクスコア-5\n\n"
+            "   投資家信頼+12 / リスクスコア-5 / 🚀 事業投資+1\n\n"
             "   ▶ 【実務】上場審査での顧客集中リスクの確認ポイント：\n"
             "     ①売上上位顧客の構成比（1社で30%超は要説明）\n"
             "     ②取引継続性の根拠（長期契約・スイッチングコスト）\n"

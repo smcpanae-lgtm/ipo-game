@@ -2076,8 +2076,23 @@ class GameSession:
         if _rv is not None and not _rv["listed"]:
             _r_from = _rv["pos"]
             _tidx_check = (t.n_period + 3) * 4 + (t.quarter - 1)
+            # 🚀 前Qにプレイヤーが事業投資を実行していたら、ライバルのシェアを奪える
+            _off_now = getattr(c, "offense_score", 0)
+            _off_prev = getattr(self, "_prev_offense_for_rival", 0)
+            self._prev_offense_for_rival = _off_now
             if _tidx_check > 0:   # 開幕ターンはライバルも麓で待機
-                if _rand.random() < 0.12:
+                if _off_now > _off_prev and _rand.random() < 0.35:
+                    # 御社の攻勢が直撃 → ライバル後退
+                    _r_steps = 1 if _rand.random() < 0.7 else 2
+                    _rv["pos"] = max(0, _rv["pos"] - _r_steps)
+                    _r_fall = True
+                    _r_news = (
+                        f"📰 <strong>御社の攻勢が{esc(_rv['name'])}を直撃！</strong><br><br>"
+                        f"先の事業投資が市場で高く評価され、{esc(_rv['name'])}から"
+                        f"顧客・人材が流出しています。<br>"
+                        f"▶ ライバルは{_r_steps}マス後退しました。攻めの経営が差を生みます。"
+                    )
+                elif _rand.random() < 0.12:
                     # 不祥事報道 → 滑落
                     _r_steps = _rand.randint(2, 4)
                     _rv["pos"] = max(0, _rv["pos"] - _r_steps)
@@ -2093,12 +2108,25 @@ class GameSession:
                     _r_steps = 1 if _roll < 0.15 else (2 if _roll < 0.65 else 3)
                     _rv["pos"] = min(MAP_GOAL_TILE, _rv["pos"] + _r_steps)
                     if _r_steps >= 3:
-                        _r_news = (
-                            f"📰 <strong>{esc(_rv['name'])}が急成長！</strong><br><br>"
-                            f"競合の{esc(_rv['name'])}が大型契約を獲得し、"
-                            f"上場準備を加速させています。<br>"
-                            f"▶ ライバルは{_r_steps}マス前進しました。先を越されるかもしれません。"
-                        )
+                        # 大きく前進した時のニュース（パターンをランダムに変える）
+                        _r_news = _rand.choice([
+                            (f"📰 <strong>{esc(_rv['name'])}が急成長！</strong><br><br>"
+                             f"競合の{esc(_rv['name'])}が大型契約を獲得し、"
+                             f"上場準備を加速させています。<br>"
+                             f"▶ ライバルは{_r_steps}マス前進しました。先を越されるかもしれません。"),
+                            (f"📰 <strong>{esc(_rv['name'])}、大型資金調達を完了！</strong><br><br>"
+                             f"有力VCから大型出資を受け、{esc(_rv['name'])}は採用と開発を"
+                             f"一気に拡大しています。<br>"
+                             f"▶ ライバルは{_r_steps}マス前進。資金力で押し切られるかもしれません。"),
+                            (f"📰 <strong>{esc(_rv['name'])}が監査法人と契約、主幹事も内定か</strong><br><br>"
+                             f"業界紙によると{esc(_rv['name'])}の上場準備体制が整いつつあり、"
+                             f"証券会社の引受審査も順調と報じられています。<br>"
+                             f"▶ ライバルは{_r_steps}マス前進。着実に山頂へ近づいています。"),
+                            (f"📰 <strong>{esc(_rv['name'])}のCEO、メディアで上場へ意欲</strong><br><br>"
+                             f"経済番組に出演した{esc(_rv['name'])}のCEOが「上場は時間の問題」と発言。"
+                             f"市場の注目が集まっています。<br>"
+                             f"▶ ライバルは{_r_steps}マス前進しました。"),
+                        ])
                 if _rv["pos"] >= MAP_GOAL_TILE:
                     _rv["listed"] = True
                     c.rival_listed_first = True
@@ -4822,7 +4850,7 @@ class GameSession:
                     text = (f"総会は重苦しい空気のまま幕を閉じた。"
                             f"株主からの厳しい指摘は上場審査への不安を高める。"
                             f"社長は即座に幹部を集め、課題解決の緊急タスクフォースを立ち上げることを宣言した。"
-                            f"N期（来期）の上場申請まで、後退は許されない。")
+                            f"N期（当期）の上場申請まで、後退は許されない。")
                 else:
                     text = ("総会は重苦しい空気のまま幕を閉じた。株主からの懸念は払拭されておらず、"
                             "社長はその夜、執務室で長い時間を過ごした。問題を先送りする余裕はもうない。")

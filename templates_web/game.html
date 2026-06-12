@@ -2147,6 +2147,8 @@ body:has(.title-screen) #scene-bg { display: none; }
     }
   }
 
+  var _flashUntil = 0;   /* フラッシュ表示の終了予定時刻（アバター演出の待機判定に使用） */
+
   function showFlash(img) {
     var fl = document.getElementById('scene-flash');
     if (!fl) return;
@@ -2154,8 +2156,14 @@ body:has(.title-screen) #scene-bg { display: none; }
     fl.classList.remove('flash-show');
     void fl.offsetWidth;   /* アニメーション再始動 */
     fl.classList.add('flash-show');
+    _flashUntil = Date.now() + 2350;
     clearTimeout(_flashTimer);
     _flashTimer = setTimeout(function () { fl.classList.remove('flash-show'); }, 2350);
+  }
+
+  /* フラッシュの残り時間(ms)。アバター・タイプ開始の待機に使う */
+  function flashRemaining() {
+    return Math.max(0, _flashUntil - Date.now());
   }
 
   function showBanner(text) {
@@ -2194,7 +2202,7 @@ body:has(.title-screen) #scene-bg { display: none; }
     if (s !== null) setScene(s);
   }
 
-  window.SceneSystem = { setScene: setScene, update: update };
+  window.SceneSystem = { setScene: setScene, update: update, flashRemaining: flashRemaining };
 })();
 </script>
 
@@ -4255,10 +4263,12 @@ body:has(.title-screen) #scene-bg { display: none; }
     var isSlot     = (item.type === 'quarterly_slot');
     var isRoulette = !!el.querySelector('.roulette-disk');
 
+    /* 🏛 シーンフラッシュ（総会画像のフル表示等）中はアバター・タイプ開始を待機 */
+    var _flashWait = (window.SceneSystem && window.SceneSystem.flashRemaining)
+                     ? window.SceneSystem.flashRemaining() : 0;
+
     if (c.mode === 'type') {
-      setSpeaker(c.speaker);
-      showPanel();
-      decorateBubble(el, c.speaker);     // 吹き出し化＋話者名バッジ
+      decorateBubble(el, c.speaker);     // 吹き出し化＋話者名バッジ（フラッシュの裏で準備）
       var targets = Array.prototype.slice
         .call(el.querySelectorAll(c.sel))
         .filter(function(x) { return x.innerHTML.trim().length > 0; });
@@ -4269,18 +4279,27 @@ body:has(.title-screen) #scene-bg { display: none; }
       }
       /* 全ターゲットを先に非表示化（タイプ前の事前表示を防ぐ）*/
       targets.forEach(function(x) { x.classList.add('tw-pending'); });
-      startMouth();
-      typeTargets(targets, 0, gen, function() {
-        stopMouth();
-        hidePanel(3500);
-        _typeTimer = setTimeout(function() { step(gen); }, 340);
-      });
+      /* フラッシュが消えてからアバター登場→1文字表示スタート */
+      _typeTimer = setTimeout(function() {
+        if (gen !== _gen) return;
+        setSpeaker(c.speaker);
+        showPanel();
+        startMouth();
+        typeTargets(targets, 0, gen, function() {
+          stopMouth();
+          hidePanel(3500);
+          _typeTimer = setTimeout(function() { step(gen); }, 340);
+        });
+      }, _flashWait);
     } else if (c.mode === 'chat-instant') {
       /* 結果報告など：IPO顧問の発言として吹き出し表示（即時・タイプなし）*/
-      setSpeaker(c.speaker);
-      showPanel();
       decorateBubble(el, c.speaker);
-      _typeTimer = setTimeout(function() { step(gen); }, 900);
+      _typeTimer = setTimeout(function() {
+        if (gen !== _gen) return;
+        setSpeaker(c.speaker);
+        showPanel();
+        _typeTimer = setTimeout(function() { step(gen); }, 900);
+      }, _flashWait);
     } else if (isRoulette) {
       hideNow();
       _typeTimer = setTimeout(function() { step(gen); }, 5000);  // 回転(4.2s)+結果表示を待つ

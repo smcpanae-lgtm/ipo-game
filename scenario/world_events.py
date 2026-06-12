@@ -228,10 +228,11 @@ def _ai_efficiency(c: Company) -> str:
     c.cash -= 20
     c.quarterly_burn = max(0, c.quarterly_burn - 15)
     c.accounting_quality = min(100, c.accounting_quality + 5)
+    c.offense_score = getattr(c, "offense_score", 0) + 1   # 🚀 事業投資（¥20M規模）
     return (
         "✅ AIによる業務効率化を実装しました。\n"
         "   経理・内部統制業務のAI化で、費用削減と品質向上を同時に達成しました。\n"
-        "   ▶ 現金-¥20M / 四半期費用-¥15M / 会計品質+5\n"
+        "   ▶ 現金-¥20M / 四半期費用-¥15M / 会計品質+5 / 🚀 事業投資+1\n"
         "   【学習ポイント】DX投資は上場後も競争優位の源泉。早期実装が重要です。"
     )
 
@@ -239,10 +240,11 @@ def _ai_product(c: Company) -> str:
     c.cash -= 40
     c.revenue.recognized *= 1.20
     c.investor_trust = min(100, c.investor_trust + 10)
+    c.offense_score = getattr(c, "offense_score", 0) + 2   # 🚀 事業投資（¥40M大型投資=2点）
     return (
         "✅ AIプロダクトの市場投入に成功しました！\n"
         "   大型投資が実を結び、売上が20%増加。投資家からの評価も急上昇しています。\n"
-        "   ▶ 現金-¥40M / 売上+20% / 投資家信頼+10\n"
+        "   ▶ 現金-¥40M / 売上+20% / 投資家信頼+10 / 🚀 事業投資+2\n"
         "   【学習ポイント】成長ストーリーの明確な企業は上場審査でも高く評価されます。"
     )
 
@@ -486,10 +488,11 @@ def _semi_throttle(c: Company) -> str:
 def _inbound_service(c: Company) -> str:
     c.cash -= 20
     c.revenue.recognized *= 1.15
+    c.offense_score = getattr(c, "offense_score", 0) + 1   # 🚀 事業投資
     return (
         "✅ インバウンド向けサービスを展開し、売上が15%増加しました！\n"
         "   円安・訪日ブームを最大限に活用した成長戦略が功を奏しました。\n"
-        "   ▶ 現金-¥20M / 売上+15%\n"
+        "   ▶ 現金-¥20M / 売上+15% / 🚀 事業投資+1\n"
         "   【学習ポイント】外部環境のポジティブな変化をいち早く取り込む経営判断が重要です。"
     )
 
@@ -497,9 +500,10 @@ def _inbound_multilang(c: Company) -> str:
     c.cash -= 10
     c.investor_trust = min(100, c.investor_trust + 5)
     c.governance_score = min(100, c.governance_score + 3)
+    c.offense_score = getattr(c, "offense_score", 0) + 1   # 🚀 事業投資
     return (
         "✅ 多言語対応を完了し、海外投資家・顧客からの評価が向上しました。\n"
-        "   ▶ 現金-¥10M / 投資家信頼+5 / ガバナンス+3\n"
+        "   ▶ 現金-¥10M / 投資家信頼+5 / ガバナンス+3 / 🚀 事業投資+1\n"
         "   【学習ポイント】グローバル対応力は上場後の海外IR活動にも直結します。"
     )
 
@@ -892,9 +896,10 @@ WORLD_INBOUND_BOOM = WorldEvent(
 def _yen_export_boost(c: Company) -> str:
     c.revenue.recognized *= 1.12
     c.investor_trust = min(100, c.investor_trust + 6)
+    c.offense_score = getattr(c, "offense_score", 0) + 1   # 🚀 事業投資
     return (
         "✅ 円安を追い風に輸出・海外向け売上が急拡大しました。\n"
-        "   売上+12% ／ 投資家信頼+6（外需取込みを高評価）\n"
+        "   売上+12% ／ 投資家信頼+6（外需取込みを高評価）／ 🚀 事業投資+1\n"
         "   ▶ 上場後の海外展開ストーリーとして投資家に訴求できます。\n"
         "   【学習ポイント】為替変動を経営リスクと捉えつつ、好機として活用する姿勢が評価されます。"
     )
