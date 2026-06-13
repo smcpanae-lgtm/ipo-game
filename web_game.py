@@ -1899,9 +1899,9 @@ class GameSession:
             body = "<br>".join(
                 f'<span class="mono-line">{esc(m)}</span>' for m in all_messages
             )
+            # 👤アイコンは廃止（classify でアバターが表示されるため重複）
             self._add(
                 f'<div class="ceo-monologue {mood_class}">'
-                f'<span class="mono-icon">👤</span>'
                 f'<div class="mono-body">{body}</div>'
                 f'</div>'
             )
