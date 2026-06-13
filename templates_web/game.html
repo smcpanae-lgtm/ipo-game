@@ -2103,6 +2103,7 @@ body:has(.title-screen) #scene-bg { display: none; }
     office:    { img: '/static/bg_office.jpg',    label: '' },                 /* 日常はバナーなし */
     boardroom: { img: '/static/bg_boardroom.jpg', label: '📋 取締役会' },
     agm:       { img: '/static/bg_agm.jpg',       label: '🏛 定時株主総会', flash: true },
+    exam:      { img: '/static/bg_exam.jpg',      label: '🏛 上場審査',     flash: true },
   };
 
   var _cur = '';        /* 現在のシーン名（'' = なし）*/
@@ -2186,10 +2187,16 @@ body:has(.title-screen) #scene-bg { display: none; }
        （決算レポート内の「株主総会」等の文字列に誤反応しないよう先に判定）*/
     if (itemType === 'quarterly_slot' || el.querySelector('.qcr-title')
         || el.querySelector('.ain-body') || el.querySelector('.do-text')) return 'office';
-    /* 意思決定（選択肢カード）→ 取締役会 */
-    if (el.querySelector('.choices-wrapper')) return 'boardroom';
-    /* 株主総会の本体パネルのみ（開催・議決結果・閉会の定型句で厳密判定）→ 総会会場 */
+    /* 🏛 上場審査（審査官との質疑応答）→ 審査会場
+       定型句で厳密判定。以降の選択肢カード・結果パネルも審査会場を維持する */
     var txt = el.textContent || '';
+    if (txt.indexOf('審査官との質疑応答') !== -1
+        || txt.indexOf('審査官の質問') !== -1) return 'exam';
+    /* 意思決定（選択肢カード）→ 取締役会（ただし審査中は審査会場のまま）*/
+    if (el.querySelector('.choices-wrapper')) {
+      return (_cur === 'exam') ? null : 'boardroom';
+    }
+    /* 株主総会の本体パネルのみ（開催・議決結果・閉会の定型句で厳密判定）→ 総会会場 */
     if (txt.indexOf('株主総会 開催') !== -1
         || txt.indexOf('株主総会 議決結果') !== -1
         || txt.indexOf('株主総会 閉会') !== -1) return 'agm';
@@ -4188,9 +4195,11 @@ body:has(.title-screen) #scene-bg { display: none; }
       return { mode: 'type', speaker: 'advisor', sel: '.bomb-text' };
     }
     /* イベント説明（社長へのご報告 / 突発 / 重要イベント）
-       話者判定はパネルタイトルのみで行う（本文中の「主幹事」「CFO」等への誤反応を防ぐ）*/
+       話者判定はパネルタイトルと本文の冒頭（「●●からの報告がありました」等）で行う。
+       冒頭限定にすることで本文中の「主幹事」「CFO」等への誤反応を防ぐ */
     if (itemType === 'event_panel') {
       var head2 = (div.querySelector('.panel-title') || {}).textContent || '';
+      var lead2 = ((div.querySelector('.panel-body') || {}).textContent || '').slice(0, 24);
       var sp2 = 'advisor';
       /* CFOからの報告 → CFO（ただし「CFO採用」イベントは採用前なのでIPO顧問）*/
       if (head2.indexOf('CFO') !== -1 && head2.indexOf('採用') === -1) {
@@ -4198,6 +4207,11 @@ body:has(.title-screen) #scene-bg { display: none; }
       /* 主幹事証券会社からの報告 → 主幹事担当者（選定イベントは選定前なのでIPO顧問）*/
       } else if (head2.indexOf('主幹事') !== -1
                  && head2.indexOf('選定') === -1 && head2.indexOf('選択') === -1) {
+        sp2 = 'underwriter';
+      } else if (lead2.indexOf('CFOからの') !== -1) {
+        sp2 = 'cfo';
+      } else if (lead2.indexOf('主幹事証券会社からの') !== -1
+                 || lead2.indexOf('主幹事からの') !== -1) {
         sp2 = 'underwriter';
       }
       return { mode: 'type', speaker: sp2, sel: '.panel-body' };

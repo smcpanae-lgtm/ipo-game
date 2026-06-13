@@ -1368,20 +1368,26 @@ def _arrest_transparent(c: Company) -> str:
     c.auditor_trust = max(0, c.auditor_trust - 10)
     c.investor_trust = max(0, c.investor_trust - 20)
     c.governance_score = min(100, c.governance_score + 15)
+    c.cfo_arrested = True   # 以降のCFO関連イベントの話者差し替えに使用
     return (
         "⚡ 事実関係を全て開示し、第三者委員会による調査を即時開始しました。\n"
         "   短期的ダメージは大きいですが、透明性ある対応が長期的信頼回復の唯一の道です。\n"
-        "   ▶ 現金-¥100M / リスクスコア+20 / 投資家信頼-20 / ガバナンス+15（透明性評価）"
+        "   ▶ 現金-¥100M / リスクスコア+20 / 投資家信頼-20 / ガバナンス+15（透明性評価）\n"
+        "   ▶ CFOは即日解任。当面は経理部長がCFO職務を代行し、後任CFOの選定を開始しました。\n"
+        "     Ⅰの部作成・監査法人対応など財務体制への負荷増大が懸念されます。"
     )
 
 def _arrest_limit_damage(c: Company) -> str:
     c.cash -= 50
     c.flags.total_risk_score += 30
     c.investor_trust = max(0, c.investor_trust - 30)
+    c.cfo_arrested = True
     return (
         "❌ 情報開示を最小限に抑えようとしましたが、リーク情報がメディアに流れました。\n"
         "   「隠蔽疑惑」が広まり、事態が悪化しています。\n"
-        "   ▶ 現金-¥50M / リスクスコア+30 / 投資家信頼-30"
+        "   ▶ 現金-¥50M / リスクスコア+30 / 投資家信頼-30\n"
+        "   ▶ CFOは解任。当面は経理部長がCFO職務を代行しますが、\n"
+        "     混乱の中での体制再構築は難航しています。"
     )
 
 def _arrest_deny(c: Company) -> str:
@@ -1389,10 +1395,12 @@ def _arrest_deny(c: Company) -> str:
     c.investor_trust = max(0, c.investor_trust - 50)
     c.auditor_trust = max(0, c.auditor_trust - 30)
     c.flags.ipo_force_delay = True
+    c.cfo_arrested = True
     return (
         "❌ 事実を否定し続けた結果、検察が追加捜査に乗り出しました。\n"
         "   主幹事証券会社が引受を即時停止。上場計画の全面撤回を余儀なくされています。\n"
-        "   ▶ リスクスコア+50 / 投資家信頼-50 / 監査信頼-30 / 上場延期フラグ発動"
+        "   ▶ リスクスコア+50 / 投資家信頼-50 / 監査信頼-30 / 上場延期フラグ発動\n"
+        "   ▶ CFOは解任。経理部長がCFO職務を代行するものの、財務体制の信頼回復は絶望的です。"
     )
 
 WORLD_EXEC_ARREST = WorldEvent(

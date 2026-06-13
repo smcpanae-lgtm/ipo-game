@@ -2607,6 +2607,12 @@ class GameSession:
                 "主幹事証券会社からの連絡：",
                 "IPOアドバイザーからの連絡（主幹事証券会社は未選定）："
             )
+        # CFO逮捕後は「CFOからの提言」をIPO顧問に差し替え（経理部長が職務代行中）
+        if getattr(self.company, "cfo_arrested", False) and "CFOからの提言：「" in raw_desc:
+            raw_desc = raw_desc.replace(
+                "CFOからの提言：「",
+                "IPO顧問からの提言：「CFO逮捕を受け、当面は経理部長が財務責任を代行しています。\n"
+            )
         filtered_desc = _re.sub(r'\n*【[^】]*ポイント[^】]*】.*', '', raw_desc, flags=_re.DOTALL)
         # 末尾の空白・改行をクリーンアップ
         filtered_desc = filtered_desc.rstrip()
@@ -3141,7 +3147,9 @@ class GameSession:
 
         # 🗺 悪い結果はワールドマップにも反映（その場で1マス後退）
         #    ※マクロショック延期は上の _handle_ipo_delay 内で大滑落(4)済み
-        if not is_good:
+        #    CFO逮捕は対応の良し悪しに関わらず会社への打撃なので必ず後退する
+        _force_fall = getattr(event, "id", "") == "WORLD_EXEC_ARREST"
+        if not is_good or _force_fall:
             _fall_label = event.title.split('（')[0].strip()[:14]
             self._map_fall(1, f"⚠ {_fall_label} — 後退…")
 
