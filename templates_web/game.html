@@ -4329,10 +4329,11 @@ body:has(.title-screen) #scene-bg { display: none; }
       else if (h.indexOf('今期の状況')    !== -1) sp = 'advisor';
       return { mode: 'type', speaker: sp, sel: '.ain-body' };
     }
-    /* 危機感・カウントダウン（「残りNQ」等）の独白 → IPO顧問アバター＋タイプ表示。
+    /* 危機感・カウントダウン（「残りNQ」等）の独白 → 社長アバター＋タイプ表示
+       （ceo-monologue は本来「社長の心の声」のため）。
        タイプ完了まで次へ進まないため、直後の総会フラッシュに潰されない */
     if (div.querySelector('.ceo-monologue')) {
-      return { mode: 'type', speaker: 'advisor', sel: '.mono-body' };
+      return { mode: 'type', speaker: 'ceo', sel: '.mono-body' };
     }
     /* 前Q意思決定の結果報告（.do-text あり）→ IPO顧問＋1文字表示 */
     if (div.querySelector('.do-text')) {
