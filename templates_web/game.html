@@ -4312,10 +4312,10 @@ body:has(.title-screen) #scene-bg { display: none; }
       } else if (head2.indexOf('主幹事') !== -1
                  && head2.indexOf('選定') === -1 && head2.indexOf('選択') === -1) {
         sp2 = 'underwriter';
-      } else if (lead2.indexOf('CFOからの') !== -1) {
+      } else if (lead2.indexOf('CFOから') !== -1) {   /* 「CFOから報告/提案/…」等、助詞「の」の有無に依存しない */
         sp2 = 'cfo';
-      } else if (lead2.indexOf('主幹事証券会社からの') !== -1
-                 || lead2.indexOf('主幹事からの') !== -1) {
+      } else if (lead2.indexOf('主幹事証券会社から') !== -1
+                 || lead2.indexOf('主幹事から') !== -1) {
         sp2 = 'underwriter';
       }
       return { mode: 'type', speaker: sp2, sel: '.panel-body' };
