@@ -1055,11 +1055,14 @@ class GameSession:
                     self._add(f'<div class="err-msg">  {" / ".join(valid)} のいずれかを選んでください</div>')
 
         elif self.phase == Phase.ALT_CHOICE:
-            valid = list("ABCD")[: len(self._alt_choices)]
-            if value.upper() in valid:
-                self._apply_alt(valid.index(value.upper()))
+            if value == "__ADVISOR__":
+                self._show_advisor_advice()   # フェーズ変更なし・アドバイス表示のみ
             else:
-                self._add(f'<div class="err-msg">  {" / ".join(valid)} のいずれかを選んでください</div>')
+                valid = list("ABCD")[: len(self._alt_choices)]
+                if value.upper() in valid:
+                    self._apply_alt(valid.index(value.upper()))
+                else:
+                    self._add(f'<div class="err-msg">  {" / ".join(valid)} のいずれかを選んでください</div>')
 
         elif self.phase == Phase.EXAM_BATTLE:
             if value.upper() in ("A", "B", "C", "D"):
@@ -3276,6 +3279,56 @@ class GameSession:
         "governance":  "🏛️ 経営体制・株主構成の安定性は上場審査の根幹です。創業者間の株式関係・キャップテーブルの整理状況は主幹事証券会社が最初に確認する論点。早期に合意・整理し、説明できる状態を保つことが重要です。",
     }
 
+    # 特殊分岐（ALT_CHOICE）3場面のIPO先生アドバイス本文。
+    # 通常イベントと違い pending_events を持たないため、識別子(_alt_kind)で引く。
+    _ALT_ADVICE = {
+        "pre_exam": (
+            "事前審査での指摘対応",
+            "主幹事の事前審査は、東証の本審査の“予行演習”です。ここでの指摘を残したまま進むと、"
+            "本審査で同じ箇所を問われ、最悪は上場否認につながります。",
+            "<strong>A 全面改善</strong>：コストは重いが、内部統制・会計品質の底上げは本審査でもプラス評価。"
+            "推薦を確実にしたいならこちら。<br>"
+            "<strong>B 重点のみ</strong>：資金は温存できるが、再審査・本審査に積み残しリスクが残る。",
+            "判断軸：<strong>残り資金（ランウェイ）と申請までの残期間</strong>。"
+            "時間に余裕があるなら全面改善が王道です。",
+        ),
+        "audit_reject": (
+            "監査法人の受嘱拒絶への対応",
+            "受嘱拒絶は「管理体制がまだ監査に耐える水準に達していない」というサインです。"
+            "近年は監査法人不足（“監査難民”）が深刻で、急いで別を探しても同じ理由で再び断られることがあります。",
+            "<strong>A 再挑戦</strong>：スケジュールは維持できるが、体制が伴わなければ再拒絶のリスク。<br>"
+            "<strong>B 1年延期</strong>：時間とコストは失うが、体制を固めてからの方が受嘱確度が上がり、"
+            "結果的に近道になることも。",
+            "判断軸：<strong>形だけ整えず“実態”を伴わせること</strong>。体制に不安が残るなら延期も合理的です。",
+        ),
+        "ipo_window": (
+            "IPOウィンドウ（上場好機）の判断",
+            "上場の好機は市況次第で開いたり閉じたりします。弱気市況での申請は、公開価格のディスカウントに加え、"
+            "流通株式時価総額などの形式要件の充足も危うくなります。",
+            "<strong>A 強行</strong>：「待っても良くなる保証はない」。市況がさらに沈む前に資金調達を確定できる。<br>"
+            "<strong>B 延期</strong>：回復に賭けるが、さらなる悪化リスクと追加コストを負う。",
+            "判断軸：<strong>自社の資金ランウェイ</strong>。余裕がなければ強行寄り、余裕があれば回復待ちも有効です。",
+        ),
+    }
+
+    def _show_alt_advice(self):
+        """特殊分岐（ALT_CHOICE）3場面のIPO先生アドバイスを表示する。"""
+        entry = self._ALT_ADVICE.get(getattr(self, "_alt_kind", ""))
+        if not entry:
+            return
+        title, lead, ab, axis = entry
+        body = (
+            f'<div class="adv-header">💡 IPO先生のアドバイス：{title}</div>'
+            f'<div class="adv-context">{lead}</div>'
+            f'<div class="adv-context">{ab}</div>'
+            f'<div class="adv-ipo-tip" style="background:rgba(255,200,80,.10);'
+            f'border-left:3px solid #ffcc44;padding:8px 12px;margin:6px 0;'
+            f'color:#ffe7a0;font-weight:600">📌 {axis}</div>'
+            f'<div class="adv-footer">各選択肢の説明をご参考の上、'
+            f'コスト・リスク・長期効果を総合的に判断してください。</div>'
+        )
+        self._add(f'<div class="advisor-chat">{body}</div>')
+
     def _show_advisor_advice(self):
         """IPO先生：現在のイベントに対する意思決定アドバイスを表示（フェーズ不変）"""
         c = self.company
@@ -3283,6 +3336,9 @@ class GameSession:
             event = self.pending_events[self.pending_event_idx]
         elif self.phase == Phase.FORTUNE_CHOICE:
             event = self._pending_fortune
+        elif self.phase == Phase.ALT_CHOICE:
+            self._show_alt_advice()
+            return
         else:
             return
 
@@ -3850,6 +3906,8 @@ class GameSession:
                 ),
             ]
             self._add(choices_html(self._alt_choices, "AB"))
+            self._alt_kind = "pre_exam"   # IPO先生相談用の識別子
+            self._add("", "clear_advisor")   # 前イベントの相談状態をリセット
             self.phase = Phase.ALT_CHOICE
             self._ph("► 選択 (A / B)")
 
@@ -3941,6 +3999,8 @@ class GameSession:
                 ),
             ]
             self._add(choices_html(self._alt_choices, "AB"))
+            self._alt_kind = "audit_reject"   # IPO先生相談用の識別子
+            self._add("", "clear_advisor")   # 前イベントの相談状態をリセット
             self.phase = Phase.ALT_CHOICE
             self._ph("► 選択 (A / B)")
         else:
@@ -4096,6 +4156,8 @@ class GameSession:
         ]
         self._add(choices_html(self._alt_choices, "AB"))
         self._alt_next_action = "tse_exam"
+        self._alt_kind = "ipo_window"   # IPO先生相談用の識別子
+        self._add("", "clear_advisor")   # 前イベントの相談状態をリセット
         self.phase = Phase.ALT_CHOICE
         self._ph("► 選択 (A / B)")
 
@@ -6173,8 +6235,8 @@ class GameSession:
             return [{"label": "💡 IPO先生に相談", "value": "__ADVISOR__", "style": "advisor"}]
 
         if self.phase == Phase.ALT_CHOICE:
-            # 選択肢カード自体がクリック可能
-            return []
+            # 選択肢カード自体がクリック可能。特殊分岐でもIPO先生に相談できる
+            return [{"label": "💡 IPO先生に相談", "value": "__ADVISOR__", "style": "advisor"}]
 
         if self.phase == Phase.FORTUNE_CHOICE:
             # 選択肢カード自体がクリック可能
