@@ -504,6 +504,36 @@ body:has(.title-screen) #scene-bg { display: none; }
   90%     { opacity: 1; }
   100%    { opacity: 0; }
 }
+
+/* ════════════════════════════════════════════
+   💓 タイマークライシス：残り5秒の心臓バクバク演出
+   （砂時計が urgent に入ると最前面でドクン…ドクンと脈打つ）
+════════════════════════════════════════════ */
+#heart-pound-overlay {
+  position: fixed; inset: 0;
+  z-index: 7900;            /* ガベル(8000)の直下・他UIより前面 */
+  display: none;
+  align-items: center; justify-content: center;
+  pointer-events: none;     /* 選択肢はハート越しにクリック可能 */
+}
+#heart-pound-overlay.heart-show { display: flex; }
+.heart-pound-img {
+  width: min(46vw, 360px); height: auto;
+  opacity: 0;
+  /* 縁をぼかして溶け込ませる円形マスク（ピンクの四角縁を消す） */
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 50%, transparent 72%);
+          mask-image: radial-gradient(circle at 50% 50%, #000 50%, transparent 72%);
+  filter: drop-shadow(0 0 22px rgba(220,40,70,.5));
+  animation: heartPound .85s ease-in-out infinite;
+}
+@keyframes heartPound {
+  0%   { transform: scale(.86); opacity: .30; }
+  18%  { transform: scale(1.12); opacity: .82; }   /* ドクン */
+  32%  { transform: scale(.96); opacity: .55; }
+  46%  { transform: scale(1.05); opacity: .72; }   /* ・ン */
+  70%  { transform: scale(.86); opacity: .30; }
+  100% { transform: scale(.86); opacity: .30; }
+}
 #story::-webkit-scrollbar { width: 5px; }
 #story::-webkit-scrollbar-track { background: transparent; }
 #story::-webkit-scrollbar-thumb { background: #2a2a50; border-radius: 4px; }
@@ -2075,6 +2105,10 @@ body:has(.title-screen) #scene-bg { display: none; }
     <div class="gavel-decided">決 定</div>
   </div>
 </div>
+<!-- 💓 タイマークライシス：残り5秒の心臓バクバク演出 -->
+<div id="heart-pound-overlay">
+  <img class="heart-pound-img" src="/static/heart_pound.png" alt="">
+</div>
 <!-- 📱 スマホ縦持ち時の回転案内 -->
 <div id="rotate-overlay">
   <div class="rotate-icon">📱</div>
@@ -2772,11 +2806,17 @@ body:has(.title-screen) #scene-bg { display: none; }
 
   /* ⏳ タイマークライシス：砂時計の駆動 */
   var _crisisTimerId = null;
+  /* 💓 残り5秒の心臓バクバク演出の表示/非表示 */
+  function setHeartPound(on) {
+    var hp = document.getElementById('heart-pound-overlay');
+    if (hp) hp.classList.toggle('heart-show', !!on);
+  }
   function clearCrisisTimer() {
     if (_crisisTimerId !== null) {
       clearInterval(_crisisTimerId);
       _crisisTimerId = null;
     }
+    setHeartPound(false);   /* タイマー停止時は必ずハートも消す */
   }
   function startCrisisTimer(wrap) {
     clearCrisisTimer();
@@ -2794,7 +2834,9 @@ body:has(.title-screen) #scene-bg { display: none; }
       var ratio = Math.max(0, Math.min(1, remainMs / (total * 1000)));
       if (fill) fill.style.width = (ratio * 100).toFixed(1) + '%';
       if (text) text.textContent = '残り' + remain + '秒';
-      if (bar)  bar.classList.toggle('urgent', remain <= 5);
+      var urgent = remain <= 5;
+      if (bar)  bar.classList.toggle('urgent', urgent);
+      setHeartPound(urgent && remainMs > 0);   /* 残り5秒で心臓バクバク */
       if (remainMs <= 0) {
         clearCrisisTimer();
         if (text) text.textContent = '時間切れ';
