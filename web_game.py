@@ -27,7 +27,7 @@ from engine.finance import (
     effective_growth_rate,
 )
 from engine.roulette import tick_bombs, audit_contract_roulette, roll
-from scenario.ipo_knowledge import get_available_events, get_fresh_events, shareholder_meeting_event, create_agm_event
+from scenario.ipo_knowledge import get_available_events, get_fresh_events, shareholder_meeting_event, create_agm_event, SALES_GROWTH_DESCRIPTIONS
 from scenario.world_events import get_fresh_world_events, roll_world_event
 from scenario.exam_questions import EXAM_QUESTIONS
 from models.events import Choice, GameEvent
@@ -2377,7 +2377,7 @@ class GameSession:
                     prev_label, "N-4期定時総会（全議案可決）", is_good=True, is_founding=True
                 )
                 self._render_agm_narrative(agm_narrative, is_good=True,
-                    n_period=t.n_period)
+                    n_period=prev_n)
 
             elif self._pending_agm_result:
                 # ── N-2期〜N期Q1：Q4で事前決議した結果を即時表示 ──
@@ -2413,7 +2413,7 @@ class GameSession:
                     is_good=self._pending_agm_is_good, is_founding=False
                 )
                 self._render_agm_narrative(agm_narrative, is_good=self._pending_agm_is_good,
-                    agm_result=self._pending_agm_result, n_period=t.n_period)
+                    agm_result=self._pending_agm_result, n_period=prev_n)
                 self._pending_agm_result = ""
                 self._pending_agm_choice_label = ""
             # Q4 AGMで繰り延べたスコア変動をQ1冒頭に適用
@@ -2587,6 +2587,10 @@ class GameSession:
     # ──────────────────────────────────────────
     def _show_next_event(self):
         event = self.pending_events[self.pending_event_idx]
+        # 売上成長イベントは毎期発火するため、報告文をランダムに変えて単調さを防ぐ
+        _var_descs = SALES_GROWTH_DESCRIPTIONS.get(getattr(event, "id", ""))
+        if _var_descs:
+            event.description = _rand.choice(_var_descs)
         # 【ポイント】【実務ポイント】【学習ポイント】等は取締役会では非表示
         # （IPO先生に相談すると表示される）
         # マーカー行以降（続行行も含む）をまとめて除去
@@ -3094,7 +3098,7 @@ class GameSession:
             f"[{self.timeline.full_label()}] 突発：{event.title}: {choice.label[:30]}"
         )
 
-        is_good = not any(kw in result_msg for kw in ["⚠️", "❗", "❌"])
+        is_good = not any(kw in result_msg for kw in ["⚠️", "❗", "❌", "💣"])
 
         # ── 意思決定受理メッセージ（ゲームイベントと同様に即時表示） ──
         action_icon = "✅" if is_good else "⚙️"
@@ -3111,6 +3115,18 @@ class GameSession:
         )
         # マクロショック処理
         if getattr(event, 'macro_shock', False):
+            # 🏁 マクロショック（災害・パンデミック・金融危機等）は経済全体への打撃。
+            #    ライバル社も例外ではなく、1〜2マス後退する。
+            _rv_ms = getattr(self, "_rival", None)
+            if _rv_ms and not _rv_ms["listed"] and _rv_ms["pos"] > 0:
+                _r_back = _rand.randint(1, 2)
+                _rv_ms["pos"] = max(0, _rv_ms["pos"] - _r_back)
+                self._add(story_panel(
+                    f"📰 <strong>{esc(event.shock_name)}は業界全体を直撃</strong><br><br>"
+                    f"競合の{esc(_rv_ms['name'])}も例外ではなく、"
+                    f"上場準備の後退を余儀なくされている模様です。<br>"
+                    f"▶ ライバルは{_r_back}マス後退しました。",
+                    "📰 業界ニュース — 上場レース", "yellow"), "event_panel")
             if idx == 0:
                 # 延期を選択 → 1年後同時期から再スタート
                 self._handle_ipo_delay(event.shock_name, after_story_html=result_html(result_msg, is_good))
@@ -3122,6 +3138,12 @@ class GameSession:
                     "pass_prob": event.pass_prob,
                     "fail_reason": event.fail_reason,
                 }
+
+        # 🗺 悪い結果はワールドマップにも反映（その場で1マス後退）
+        #    ※マクロショック延期は上の _handle_ipo_delay 内で大滑落(4)済み
+        if not is_good:
+            _fall_label = event.title.split('（')[0].strip()[:14]
+            self._map_fall(1, f"⚠ {_fall_label} — 後退…")
 
         # 結果詳細は次ターン冒頭に表示（ゲームイベントと同じ遅延表示）
         self._deferred_outcomes.append((event.title, choice.label, result_msg, is_good))
@@ -5028,41 +5050,45 @@ class GameSession:
         )
 
     def _render_agm_narrative(self, text: Optional[str], is_good: bool,
-                              agm_result: str = "", n_period: int = -3):
-        """AGM後ナラティブをパネルとして出力（Gemini不可時はルールベースフォールバック）"""
+                              agm_result: str = "", n_period: int = -4):
+        """AGM後ナラティブをパネルとして出力（Gemini不可時はルールベースフォールバック）
+
+        n_period は「総会の対象期」（= 開催四半期の属する期 − 1）。
+        例: N-2期Q1に開催される総会は N-3期総会なので n_period=-3 を渡す。"""
         if not text:
-            # フォールバック（ルールベース）— 総会結果・期に応じて文章を変える
-            period_labels = {-3: "N-3期", -2: "N-2期（直前々期）", -1: "N-1期（直前期）", 0: "N期（申請期）"}
+            # フォールバック（ルールベース）— 総会結果・対象期に応じて文章を変える
+            # 期ラベルの取り違えを防ぐため、文面は極力一般的な表現とする
+            period_labels = {-4: "N-4期", -3: "N-3期", -2: "N-2期（直前々期）", -1: "N-1期（直前期）"}
             plabel = period_labels.get(n_period, "")
             if is_good:
-                if n_period == -3:
+                if n_period == -4:
                     text = (f"総会は和やかな雰囲気のまま閉幕した。"
                             f"株主たちの顔に安堵の色が見える。社長はふと、会社を起こした日のことを思い出した。"
                             f"IPO準備は今日からが本番だ。まずは内部管理体制の整備から着手しなければならない。")
-                elif n_period == -2:
+                elif n_period == -3:
                     text = (f"{plabel}定時株主総会が無事終了した。"
                             f"監査法人との関係も軌道に乗り、ガバナンス体制が少しずつ形になってきている。"
                             f"社長は会場を出るとき、IPO準備顧問と短く言葉を交わした。"
                             f"「来期（直前期）が本当の勝負です」—その言葉が頭を離れなかった。")
-                elif n_period == -1:
+                elif n_period == -2:
                     text = (f"{plabel}定時株主総会が終わった。"
                             f"上場申請まで残りわずか。社長室に戻った社長は、ここまで積み上げてきた準備を静かに振り返った。"
                             f"東証の審査官に胸を張って説明できる状態にあるか。自問しながら、"
                             f"最後の仕上げに向けてスタッフへの指示を出し始めた。")
                 else:
-                    text = ("総会は無事に閉幕した。株主たちの信任を得た今、社長の肩には安堵と同時に"
-                            "重大な責任がずっしりとのしかかる。IPO準備はここからが本番だ。")
+                    text = ("ようやく定時株主総会が終わった。株主たちの信任を得た今、社長の肩には安堵と同時に"
+                            "重大な責任がずっしりとのしかかる。上場に向けた仕上げはここからが本番だ。")
             else:
-                if n_period == -2:
+                if n_period == -3:
                     text = (f"{plabel}総会は波乱含みだった。"
-                            f"社外役員の選任が遅れていること、内部管理体制の不備への懸念が株主から寄せられた。"
+                            f"内部管理体制の不備への懸念が株主から寄せられた。"
                             f"社長はその夜、執務室で長い時間を過ごした。"
-                            f"直前期（N-1期）に向けて、取り組むべき課題が山積している。")
-                elif n_period == -1:
-                    text = (f"総会は重苦しい空気のまま幕を閉じた。"
+                            f"上場に向けて、取り組むべき課題が山積している。")
+                elif n_period == -2:
+                    text = (f"ようやく定時株主総会が終わった。だが空気は重い。"
                             f"株主からの厳しい指摘は上場審査への不安を高める。"
                             f"社長は即座に幹部を集め、課題解決の緊急タスクフォースを立ち上げることを宣言した。"
-                            f"N期（当期）の上場申請まで、後退は許されない。")
+                            f"上場申請まで、後退は許されない。")
                 else:
                     text = ("総会は重苦しい空気のまま幕を閉じた。株主からの懸念は払拭されておらず、"
                             "社長はその夜、執務室で長い時間を過ごした。問題を先送りする余裕はもうない。")

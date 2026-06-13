@@ -3574,6 +3574,8 @@ body:has(.title-screen) #scene-bg { display: none; }
         _masterGain.gain.cancelScheduledValues(_t);
         _masterGain.gain.setValueAtTime(0, _t);
       }
+      // 再生中・予約済みの効果音（ルーレット等）も即停止
+      if (window._slotSfx && window._slotSfx.stopAll) window._slotSfx.stopAll();
       if (btn) { btn.textContent = '🔇 SOUND ON'; btn.classList.add('muted'); }
     } else {
       if (_masterGain && _audioCtx) {
@@ -3663,6 +3665,10 @@ body:has(.title-screen) #scene-bg { display: none; }
 
   function ctx()  { return window._bgmCtrl && window._bgmCtrl.getCtx(); }
   function dest() { return window._bgmCtrl && window._bgmCtrl.destination(); }
+  /* 🔇 サウンドOFF時は効果音も鳴らさない（BGMミュート設定に連動） */
+  function muted() {
+    return !!(window._bgmCtrl && window._bgmCtrl.isMuted && window._bgmCtrl.isMuted());
+  }
 
   /* --- 汎用ノート再生 --- */
   function playNote(freq, t, dur, vol, type, vibRate) {
@@ -3968,15 +3974,17 @@ body:has(.title-screen) #scene-bg { display: none; }
   /* 外部公開 */
   window._slotSfx = {
     spinStart: function() {
+      if (muted()) return;
       if (window._bgmCtrl) window._bgmCtrl.fadeDown();
       playSpinTick();
     },
-    reelStop:    playReelStop,
-    fanfare:     playFanfare,
-    doom:        playDoom,
-    calm:        playCalm,
-    ipoFanfare:  playIpoFanfare,
-    ipoFailure:  playIpoFailure,
+    reelStop:    function(heavy) { if (!muted()) playReelStop(heavy); },
+    fanfare:     function() { if (!muted()) playFanfare(); },
+    doom:        function() { if (!muted()) playDoom(); },
+    calm:        function() { if (!muted()) playCalm(); },
+    ipoFanfare:  function() { if (!muted()) playIpoFanfare(); },
+    ipoFailure:  function() { if (!muted()) playIpoFailure(); },
+    stopAll:     stopAll,
     resumeBGM:  function() {
       stopAll();
       if (window._bgmCtrl) window._bgmCtrl.fadeUp();
