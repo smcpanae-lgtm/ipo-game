@@ -2827,6 +2827,11 @@ body:has(.title-screen) #scene-bg { display: none; }
       _advisorShownForCurrentEvent = false;
       return null;
     }
+    /* 特殊シグナル：各期の開始時に古いストーリーログを一掃（DOM肥大化による後半の重さを解消）*/
+    if (itemType === 'clear_story') {
+      storyEl.innerHTML = '';
+      return null;
+    }
     const div = document.createElement('div');
     div.className = 'story-item';
     div.innerHTML = html;

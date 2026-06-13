@@ -2343,6 +2343,13 @@ class GameSession:
         t = self.timeline
         self._closing_period = None  # 前ターンの年度末遷移表示をリセット
 
+        # 🧹 期が切り替わった直後の最初のターンで、古いストーリーログを一掃する。
+        #    （前期末バッチの決算・◆終了◆・◆スタート◆は閲覧済みのまま残し、
+        #     プレイヤーが「続行」で新しい期に進んだ時点でDOMをリセット＝後半の重さを解消）
+        if getattr(self, "_pending_story_clear", False):
+            self._pending_story_clear = False
+            self._add("", "clear_story")
+
         # ── 上場延期後の監査ルーレット再挑戦 ──
         if getattr(self, '_audit_retry_pending', False):
             self._audit_retry_pending = False
@@ -3608,6 +3615,9 @@ class GameSession:
             }.get(old_n, "")
             if period_label:
                 self._add(story_rule(f"◆ {period_label} 終了 ◆", "white"))
+            # 🧹 N-3/N-2/N-1 の各期末 → 次の期の最初のターンで古いログを一掃する予約
+            if old_n in (-3, -2, -1):
+                self._pending_story_clear = True
 
         if period_events.get("enter_n2"):
             self._add(story_rule("◆ N-2期（直前々期）に突入！ ◆", "cyan"))
