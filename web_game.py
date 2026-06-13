@@ -911,7 +911,7 @@ class GameSession:
         # マクロショック（パンデミック等）が強行された場合の情報
         self._macro_shock_active: dict = {}   # {"name": "...", "pass_prob": 0.2, "fail_reason": "..."}
         # ⏳ タイマークライシス：未解消の緊急課題（毎ターン対応選択を強制表示）
-        self._timer_crisis: dict = None       # {"id": "cfo_successor", "remaining": 2}
+        self._timer_crises: list = []         # [{"kind": "cfo_successor", "remaining": 2}, ...]
         # 審査ボス戦（審査官との質疑応答）の状態
         self._exam_qs: list = []          # 出題された問題（dictのリスト）
         self._exam_idx: int = 0           # 現在の問題番号
@@ -2043,10 +2043,36 @@ class GameSession:
         )
 
     # ──────────────────────────────────────────
+    # ⏳ タイマークライシス：共通フレームワーク
+    # ──────────────────────────────────────────
+    def _build_crisis_event(self, crisis: dict) -> GameEvent:
+        """crisis = {"kind": "...", "remaining": N} からGameEventを生成する"""
+        builders = {
+            "cfo_successor": self._build_cfo_successor_crisis_event,
+            "data_leak_report": self._build_data_leak_crisis_event,
+            "bcp_recovery": self._build_bcp_recovery_crisis_event,
+            "labor_compliance": self._build_labor_compliance_crisis_event,
+        }
+        return builders[crisis["kind"]](crisis)
+
+    def _crisis_postpone(self, crisis: dict, expire_label: str, expire_fn) -> str:
+        """先送りの共通処理。期限切れ時は expire_fn() を呼んでクライシスを除去する。"""
+        crisis["remaining"] -= 1
+        if crisis["remaining"] <= 0:
+            if crisis in self._timer_crises:
+                self._timer_crises.remove(crisis)
+            self._map_fall(1, f"⚠ {expire_label} 期限切れ — 後退…")
+            return expire_fn()
+        return (
+            f"⏳ 対応を先送りしました。\n\n"
+            f"   ・対応できる期数は残り{crisis['remaining']}期です。"
+        )
+
+    # ──────────────────────────────────────────
     # ⏳ タイマークライシス：後任CFO選定
     # ──────────────────────────────────────────
-    def _build_cfo_successor_crisis_event(self) -> GameEvent:
-        remaining = self._timer_crisis["remaining"]
+    def _build_cfo_successor_crisis_event(self, crisis: dict) -> GameEvent:
+        remaining = crisis["remaining"]
         return GameEvent(
             id="cfo_successor_crisis",
             title=f"⏳ タイマークライシス：後任CFO選定（残り{remaining}期）",
@@ -2062,12 +2088,12 @@ class GameSession:
                 Choice(
                     label="A. 後任CFOを選任する（¥30M）",
                     description="財務責任者の体制を正式に再構築し、クライシスを解消する",
-                    immediate_effect=lambda c: self._resolve_cfo_successor(c),
+                    immediate_effect=lambda c: self._resolve_cfo_successor(c, crisis),
                 ),
                 Choice(
                     label="B. 先送りする（経理部長代行を継続）",
                     description="コストはかからないが、対応できる期数が1つ減る",
-                    immediate_effect=lambda c: self._postpone_cfo_successor(c),
+                    immediate_effect=lambda c: self._postpone_cfo_successor(c, crisis),
                 ),
             ],
             min_n_period=-3,
@@ -2075,11 +2101,12 @@ class GameSession:
             one_shot=False,
         )
 
-    def _resolve_cfo_successor(self, c: Company) -> str:
+    def _resolve_cfo_successor(self, c: Company, crisis: dict) -> str:
         c.cash -= 30
         c.internal_control_score = min(100, c.internal_control_score + 10)
         c.investor_trust = min(100, c.investor_trust + 5)
-        self._timer_crisis = None
+        if crisis in self._timer_crises:
+            self._timer_crises.remove(crisis)
         return (
             "🧑‍💼 後任CFOの選任が完了しました。（¥30M）\n\n"
             "   ・経理部長による代行体制を解消し、財務責任者の体制を正式に再構築しました。\n"
@@ -2087,24 +2114,192 @@ class GameSession:
             "   ▶ タイマークライシス「後任CFO選定」は解消されました。"
         )
 
-    def _postpone_cfo_successor(self, c: Company) -> str:
-        tc = self._timer_crisis
-        tc["remaining"] -= 1
-        if tc["remaining"] <= 0:
+    def _postpone_cfo_successor(self, c: Company, crisis: dict) -> str:
+        def _expire():
             c.flags.total_risk_score += 15
             c.investor_trust = max(0, c.investor_trust - 10)
-            self._timer_crisis = None
-            self._map_fall(1, "⚠ 後任CFO選定 期限切れ — 後退…")
             return (
                 "⚠️ 後任CFO選定が期限切れとなりました。\n\n"
                 "   ・経理部長代行体制の長期化により、Ⅰの部作成・内部統制報告に遅れが生じました。\n"
                 "   ・リスクスコア+15 / 投資家信頼-10\n\n"
                 "   ▶ ワールドマップ：1マス後退"
             )
-        return (
-            "⏳ 後任CFOの選任を先送りしました。\n\n"
-            f"   ・経理部長代行体制を継続します。対応できる期数は残り{tc['remaining']}期です。"
+        return self._crisis_postpone(crisis, "後任CFO選定", _expire)
+
+    # ──────────────────────────────────────────
+    # ⏳ タイマークライシス：個人情報漏洩 再発防止策の策定
+    # ──────────────────────────────────────────
+    def _build_data_leak_crisis_event(self, crisis: dict) -> GameEvent:
+        remaining = crisis["remaining"]
+        return GameEvent(
+            id="data_leak_report_crisis",
+            title=f"⏳ タイマークライシス：個人情報漏洩 再発防止策の策定（残り{remaining}期）",
+            description=(
+                "先日発生した個人情報漏洩について、監督官庁・利用者への対応はまだ完了していません。\n\n"
+                "個人情報保護法に基づき、監督官庁への報告と再発防止策の策定・公表が\n"
+                "求められています。\n\n"
+                f"対応を先送りできるのは、あと{remaining}期までです。\n"
+                "対応が遅れれば行政指導の対象となり、企業イメージの悪化はライバル企業にとって\n"
+                "追い風となります。"
+            ),
+            choices=[
+                Choice(
+                    label="A. 報告書を提出し、再発防止策を実施する（¥12M）",
+                    description="監督官庁への報告を完了し、再発防止策を公表する",
+                    immediate_effect=lambda c: self._resolve_data_leak_report(c, crisis),
+                ),
+                Choice(
+                    label="B. 先送りする（対応を保留）",
+                    description="コストはかからないが、対応できる期数が1つ減る",
+                    immediate_effect=lambda c: self._postpone_data_leak_report(c, crisis),
+                ),
+            ],
+            min_n_period=-3,
+            max_n_period=0,
+            one_shot=False,
         )
+
+    def _resolve_data_leak_report(self, c: Company, crisis: dict) -> str:
+        c.cash -= 12
+        c.compliance_score = min(100, c.compliance_score + 10)
+        c.internal_control_score = min(100, c.internal_control_score + 5)
+        c.flags.total_risk_score = max(0, c.flags.total_risk_score - 5)
+        if crisis in self._timer_crises:
+            self._timer_crises.remove(crisis)
+        return (
+            "📄 監督官庁への報告と再発防止策の公表を完了しました。（¥12M）\n\n"
+            "   ・コンプライアンス+10 / 内部統制+5 / リスクスコア-5\n\n"
+            "   ▶ タイマークライシス「個人情報漏洩 再発防止策の策定」は解消されました。"
+        )
+
+    def _postpone_data_leak_report(self, c: Company, crisis: dict) -> str:
+        def _expire():
+            c.compliance_score = max(0, c.compliance_score - 15)
+            c.investor_trust = max(0, c.investor_trust - 10)
+            c.flags.total_risk_score += 15
+            _rv = getattr(self, "_rival", None)
+            rival_msg = ""
+            if _rv and not _rv["listed"]:
+                _rv["pos"] += 1
+                rival_msg = f"\n   ・企業イメージの悪化により、{_rv['name']}が1マス前進しました。"
+            return (
+                "⚠️ 個人情報漏洩への対応が期限切れとなりました。\n\n"
+                "   ・監督官庁から行政指導を受け、コンプライアンス-15 / 投資家信頼-10 / リスクスコア+15"
+                f"{rival_msg}\n\n"
+                "   ▶ ワールドマップ：1マス後退"
+            )
+        return self._crisis_postpone(crisis, "個人情報漏洩 再発防止策の策定", _expire)
+
+    # ──────────────────────────────────────────
+    # ⏳ タイマークライシス：BCP見直し・拠点復旧
+    # ──────────────────────────────────────────
+    def _build_bcp_recovery_crisis_event(self, crisis: dict) -> GameEvent:
+        remaining = crisis["remaining"]
+        return GameEvent(
+            id="bcp_recovery_crisis",
+            title=f"⏳ タイマークライシス：BCP見直し・拠点復旧（残り{remaining}期）",
+            description=(
+                "被災した拠点の復旧、および事業継続計画（BCP）の見直しはまだ完了していません。\n\n"
+                "復旧投資を行わなければ、被災の影響が業績に長引くおそれがあります。\n\n"
+                f"対応を先送りできるのは、あと{remaining}期までです。"
+            ),
+            choices=[
+                Choice(
+                    label="A. 復旧投資を実施し、BCPを見直す（¥20M）",
+                    description="拠点の復旧とBCP見直しを完了し、クライシスを解消する",
+                    immediate_effect=lambda c: self._resolve_bcp_recovery(c, crisis),
+                ),
+                Choice(
+                    label="B. 先送りする（復旧を保留）",
+                    description="コストはかからないが、対応できる期数が1つ減る",
+                    immediate_effect=lambda c: self._postpone_bcp_recovery(c, crisis),
+                ),
+            ],
+            min_n_period=-3,
+            max_n_period=0,
+            one_shot=False,
+        )
+
+    def _resolve_bcp_recovery(self, c: Company, crisis: dict) -> str:
+        c.cash -= 20
+        c.employee_morale = min(100, c.employee_morale + 10)
+        c.market_cap_million = max(100.0, c.market_cap_million * 1.05)
+        c.flags.total_risk_score = max(0, c.flags.total_risk_score - 5)
+        if crisis in self._timer_crises:
+            self._timer_crises.remove(crisis)
+        return (
+            "🏗️ 拠点の復旧投資とBCPの見直しを完了しました。（¥20M）\n\n"
+            "   ・士気+10 / 時価総額+5% / リスクスコア-5\n\n"
+            "   ▶ タイマークライシス「BCP見直し・拠点復旧」は解消されました。"
+        )
+
+    def _postpone_bcp_recovery(self, c: Company, crisis: dict) -> str:
+        def _expire():
+            c.investor_trust = max(0, c.investor_trust - 10)
+            c.market_cap_million = max(100.0, c.market_cap_million * 0.95)
+            c.flags.total_risk_score += 10
+            return (
+                "⚠️ BCP見直し・拠点復旧への対応が期限切れとなりました。\n\n"
+                "   ・復旧の遅れにより売上回復が長引き、投資家信頼-10 / 時価総額-5% / リスクスコア+10\n\n"
+                "   ▶ ワールドマップ：1マス後退"
+            )
+        return self._crisis_postpone(crisis, "BCP見直し・拠点復旧", _expire)
+
+    # ──────────────────────────────────────────
+    # ⏳ タイマークライシス：労務改善・コンプライアンス体制の報告
+    # ──────────────────────────────────────────
+    def _build_labor_compliance_crisis_event(self, crisis: dict) -> GameEvent:
+        remaining = crisis["remaining"]
+        return GameEvent(
+            id="labor_compliance_crisis",
+            title=f"⏳ タイマークライシス：労務改善・コンプライアンス体制の報告（残り{remaining}期）",
+            description=(
+                "従業員からの告発を受けた労務問題について、改善報告はまだ完了していません。\n\n"
+                "主幹事証券会社・監査法人へ改善報告を行わなければ、信頼低下が続くおそれがあります。\n\n"
+                f"対応を先送りできるのは、あと{remaining}期までです。"
+            ),
+            choices=[
+                Choice(
+                    label="A. 改善報告を提出する（¥10M）",
+                    description="労務改善・コンプライアンス体制の報告を完了し、クライシスを解消する",
+                    immediate_effect=lambda c: self._resolve_labor_compliance(c, crisis),
+                ),
+                Choice(
+                    label="B. 先送りする（報告を保留）",
+                    description="コストはかからないが、対応できる期数が1つ減る",
+                    immediate_effect=lambda c: self._postpone_labor_compliance(c, crisis),
+                ),
+            ],
+            min_n_period=-3,
+            max_n_period=0,
+            one_shot=False,
+        )
+
+    def _resolve_labor_compliance(self, c: Company, crisis: dict) -> str:
+        c.cash -= 10
+        c.compliance_score = min(100, c.compliance_score + 10)
+        c.employee_morale = min(100, c.employee_morale + 8)
+        c.auditor_trust = min(100, c.auditor_trust + 5)
+        if crisis in self._timer_crises:
+            self._timer_crises.remove(crisis)
+        return (
+            "📋 労務改善・コンプライアンス体制の報告を完了しました。（¥10M）\n\n"
+            "   ・コンプライアンス+10 / 士気+8 / 監査信頼+5\n\n"
+            "   ▶ タイマークライシス「労務改善・コンプライアンス体制の報告」は解消されました。"
+        )
+
+    def _postpone_labor_compliance(self, c: Company, crisis: dict) -> str:
+        def _expire():
+            c.compliance_score = max(0, c.compliance_score - 10)
+            c.auditor_trust = max(0, c.auditor_trust - 10)
+            c.flags.total_risk_score += 10
+            return (
+                "⚠️ 労務改善・コンプライアンス体制の報告が期限切れとなりました。\n\n"
+                "   ・主幹事証券会社・監査法人からの信頼低下により、"
+                "コンプライアンス-10 / 監査信頼-10 / リスクスコア+10\n\n"
+                "   ▶ ワールドマップ：1マス後退"
+            )
+        return self._crisis_postpone(crisis, "労務改善・コンプライアンス体制の報告", _expire)
 
     def _rival_static(self) -> dict:
         """🏁 マップ演出にライバルを静止表示するためのパラメータ"""
@@ -2402,8 +2597,8 @@ class GameSession:
 
         # ⏳ タイマークライシス：未解消なら最優先で対応選択を毎ターン提示
         #   （先送りも選べるが、放置したまま自然消滅することはない）
-        if getattr(self, "_timer_crisis", None):
-            ipo_events.insert(0, self._build_cfo_successor_crisis_event())
+        for _tc in getattr(self, "_timer_crises", []):
+            ipo_events.insert(0, self._build_crisis_event(_tc))
 
         # ── Q1: 🎪バナー + AGM議決結果表示 ──
         # 日本の定時株主総会は期末後3ヶ月以内（≒翌期Q1）に開催される
@@ -2614,7 +2809,7 @@ class GameSession:
                 "N-1期以降の選定では公開指導（引受審査）期間が大幅に短縮され、<br>"
                 f"指摘事項の改善が間に合わないリスクがあります。<br><br>"
                 f"{_uw_timing_msg}",
-                "🔴 主幹事証券会社 未選定 — 緊急警告", "red"
+                "⏳ タイマークライシス：主幹事証券選定（残り1期） — 緊急警告", "red"
             ))
 
         # ── Q4 (N-3期〜N-1期): AGM議案の事前決定イベントを注入 ──
@@ -3204,6 +3399,12 @@ class GameSession:
                     f"上場準備の後退を余儀なくされている模様です。<br>"
                     f"▶ ライバルは{_r_back}マス後退しました。",
                     "📰 業界ニュース — 上場レース", "yellow"), "event_panel")
+            # ⏳ 大規模災害 → タイマークライシス「BCP見直し・拠点復旧」を開始
+            #    （延期・強行どちらを選んでも、拠点復旧は別途必要）
+            if getattr(event, "id", "") == "macro_earthquake" \
+                    and not any(tc["kind"] == "bcp_recovery" for tc in self._timer_crises):
+                self._timer_crises.append({"kind": "bcp_recovery", "remaining": 2})
+
             if idx == 0:
                 # 延期を選択 → 1年後同時期から再スタート
                 self._handle_ipo_delay(event.shock_name, after_story_html=result_html(result_msg, is_good))
@@ -3226,8 +3427,19 @@ class GameSession:
 
         # ⏳ CFO逮捕 → タイマークライシス「後任CFO選定」を開始
         #    以降、解消されるまで毎ターン必ず対応選択を提示する
-        if getattr(event, "id", "") == "WORLD_EXEC_ARREST":
-            self._timer_crisis = {"id": "cfo_successor", "remaining": 2}
+        if getattr(event, "id", "") == "WORLD_EXEC_ARREST" \
+                and not any(tc["kind"] == "cfo_successor" for tc in self._timer_crises):
+            self._timer_crises.append({"kind": "cfo_successor", "remaining": 2})
+
+        # ⏳ 個人情報漏洩 → タイマークライシス「再発防止策の策定」を開始
+        if getattr(event, "id", "") == "data_leak" \
+                and not any(tc["kind"] == "data_leak_report" for tc in self._timer_crises):
+            self._timer_crises.append({"kind": "data_leak_report", "remaining": 1})
+
+        # ⏳ 従業員不祥事 → タイマークライシス「労務改善・コンプライアンス体制の報告」を開始
+        if getattr(event, "id", "") == "sns_scandal" \
+                and not any(tc["kind"] == "labor_compliance" for tc in self._timer_crises):
+            self._timer_crises.append({"kind": "labor_compliance", "remaining": 2})
 
         # 結果詳細は次ターン冒頭に表示（ゲームイベントと同じ遅延表示）
         self._deferred_outcomes.append((event.title, choice.label, result_msg, is_good))
