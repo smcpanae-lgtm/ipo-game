@@ -685,7 +685,7 @@ def _rw_label(r: int) -> str:
     return f"⚠ {r}Q（{r * 3}ヶ月）要調達！"
 
 
-def choices_html(choices_list, letters="ABCD") -> str:
+def choices_html(choices_list, letters="ABCD", timer_seconds=0, timer_autofail="") -> str:
     color_classes = ["choice-a", "choice-b", "choice-c", "choice-d"]
     parts = []
     for i, ch in enumerate(choices_list):
@@ -736,7 +736,21 @@ def choices_html(choices_list, letters="ABCD") -> str:
         '👆 選択肢をダブルクリックで決定'
         '</div>'
     )
-    return f'<div class="choices-wrapper">{header}<div class="choices-container">{"".join(parts)}</div></div>'
+    # ⏳ タイマークライシス：制限時間を指定された場合は砂時計用の data 属性を付与する
+    timer_attr = ""
+    timer_bar = ""
+    if timer_seconds and timer_seconds > 0:
+        af = esc(timer_autofail or "B")
+        timer_attr = f' data-timer-seconds="{int(timer_seconds)}" data-timer-autofail="{af}"'
+        timer_bar = (
+            '<div class="crisis-timer" aria-hidden="true">'
+            '<span class="crisis-timer-icon">⏳</span>'
+            '<div class="crisis-timer-track"><div class="crisis-timer-fill"></div></div>'
+            '<span class="crisis-timer-text">残り--秒</span>'
+            '</div>'
+        )
+    return (f'<div class="choices-wrapper"{timer_attr}>{timer_bar}{header}'
+            f'<div class="choices-container">{"".join(parts)}</div></div>')
 
 
 # ══════════════════════════════════════════════
@@ -2891,7 +2905,13 @@ class GameSession:
         prompt_text = "👤 社長、緊急対応が必要です。どう判断しますか？" if is_world else "👤 社長、あなたならどう判断しますか？"
         self._add(f'<div class="decision-prompt">{prompt_text}</div>')
         self._add("", "clear_advisor")   # 前イベントのアドバイスパネルをクリア
-        self._add(choices_html(event.choices))
+        # ⏳ タイマークライシス（id末尾が _crisis）は実時間30秒の砂時計を付与。
+        #    時間切れ＝「先送り(B)」を選んだものとして自動進行する。
+        _is_crisis = str(getattr(event, "id", "")).endswith("_crisis")
+        if _is_crisis:
+            self._add(choices_html(event.choices, timer_seconds=30, timer_autofail="B"))
+        else:
+            self._add(choices_html(event.choices))
         valid = list("ABCD")[: len(event.choices)]
         self.phase = Phase.EVENT_CHOICE
         self._ph(f"► 社長のご判断 ({' / '.join(valid)})")

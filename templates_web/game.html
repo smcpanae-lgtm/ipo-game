@@ -841,6 +841,37 @@ body:has(.title-screen) #scene-bg { display: none; }
 /* ─── 選択肢 ─── */
 /* 選択肢ラッパー */
 .choices-wrapper { margin-top: 6px; }
+/* ⏳ タイマークライシス：砂時計（グレー基調＋差し色アンバー） */
+.crisis-timer {
+  display: flex; align-items: center; gap: 9px;
+  margin: 0 2px 9px; padding: 7px 11px;
+  background: rgba(40,40,44,.72);
+  border: 1px solid rgba(120,120,128,.45);
+  border-radius: 7px;
+}
+.crisis-timer-icon { font-size: 15px; line-height: 1; flex: none; }
+.crisis-timer-track {
+  flex: 1; height: 7px; border-radius: 4px;
+  background: rgba(90,90,96,.45); overflow: hidden;
+}
+.crisis-timer-fill {
+  height: 100%; width: 100%;
+  background: linear-gradient(90deg, #b5963f 0%, #d9b863 100%);
+  transition: width .25s linear;
+}
+.crisis-timer-text {
+  font-size: 11px; color: var(--dim); letter-spacing: .5px;
+  flex: none; min-width: 56px; text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+/* 残り5秒以下：警告点滅 */
+.crisis-timer.urgent .crisis-timer-fill { background: #c0504d; }
+.crisis-timer.urgent .crisis-timer-text { color: #e08b88; }
+.crisis-timer.urgent { animation: crisisPulse .9s ease-in-out infinite; }
+@keyframes crisisPulse {
+  0%,100% { border-color: rgba(120,120,128,.45); }
+  50%     { border-color: rgba(192,80,77,.9); }
+}
 .choices-header {
   font-size: 11px; color: var(--dim); letter-spacing: .5px;
   margin-bottom: 7px; padding: 0 2px;
@@ -2547,6 +2578,8 @@ body:has(.title-screen) #scene-bg { display: none; }
     } else {
       if (_actionInProgress) return;
       _actionInProgress = true;
+      /* ⏳ 何らかの判断が確定したら砂時計を停止 */
+      clearCrisisTimer();
       /* 全選択肢カードを即座に無効化（二重ダブルクリック防止） */
       document.querySelectorAll('.choice-item').forEach(function(el) {
         el.style.pointerEvents = 'none';
@@ -2710,6 +2743,42 @@ body:has(.title-screen) #scene-bg { display: none; }
     }
   }
 
+  /* ⏳ タイマークライシス：砂時計の駆動 */
+  var _crisisTimerId = null;
+  function clearCrisisTimer() {
+    if (_crisisTimerId !== null) {
+      clearInterval(_crisisTimerId);
+      _crisisTimerId = null;
+    }
+  }
+  function startCrisisTimer(wrap) {
+    clearCrisisTimer();
+    var total = parseInt(wrap.getAttribute('data-timer-seconds'), 10) || 30;
+    var autofail = wrap.getAttribute('data-timer-autofail') || 'B';
+    var bar  = wrap.querySelector('.crisis-timer');
+    var fill = wrap.querySelector('.crisis-timer-fill');
+    var text = wrap.querySelector('.crisis-timer-text');
+    var endAt = Date.now() + total * 1000;
+    function tick() {
+      /* 選択肢が画面から消えていたら（＝決定済み/再描画）停止 */
+      if (!document.body.contains(wrap)) { clearCrisisTimer(); return; }
+      var remainMs = endAt - Date.now();
+      var remain = Math.max(0, Math.ceil(remainMs / 1000));
+      var ratio = Math.max(0, Math.min(1, remainMs / (total * 1000)));
+      if (fill) fill.style.width = (ratio * 100).toFixed(1) + '%';
+      if (text) text.textContent = '残り' + remain + '秒';
+      if (bar)  bar.classList.toggle('urgent', remain <= 5);
+      if (remainMs <= 0) {
+        clearCrisisTimer();
+        if (text) text.textContent = '時間切れ';
+        /* 砂が尽きた＝解消しない判断（先送り）を選んだものとして自動進行 */
+        if (!_actionInProgress) submitAction(autofail);
+      }
+    }
+    tick();
+    _crisisTimerId = setInterval(tick, 250);
+  }
+
   function appendStory(html, itemType) {
     /* 特殊シグナル：選択肢カード上の💰/⚠ヒントを表示 */
     if (itemType === 'reveal_hints') {
@@ -2735,6 +2804,9 @@ body:has(.title-screen) #scene-bg { display: none; }
     div.className = 'story-item';
     div.innerHTML = html;
     storyEl.appendChild(div);
+    /* ⏳ タイマークライシス：砂時計付き選択肢が出たらカウント開始 */
+    var _ctw = div.querySelector('.choices-wrapper[data-timer-seconds]');
+    if (_ctw) startCrisisTimer(_ctw);
     /* 🏛 シーン背景の自動切替（取締役会・株主総会・社長室）*/
     if (window.SceneSystem) window.SceneSystem.update(div, itemType);
     /* タイトル画面：localStorageにセーブデータがあれば再開ボタンをクライアント側で注入

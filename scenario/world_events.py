@@ -393,10 +393,11 @@ def _comp_differentiate(c: Company) -> str:
     c.cash -= 20
     c.accounting_quality = min(100, c.accounting_quality + 5)
     c.investor_trust = min(100, c.investor_trust + 5)
+    c.offense_score = getattr(c, "offense_score", 0) + 1   # 🚀 事業投資（差別化＝攻めの一手）
     return (
         "✅ 差別化戦略を強化し、プレミアム市場への集中を宣言しました。\n"
         "   価格競争ではなく価値競争で、ブランドと利益率を守ることに成功しています。\n"
-        "   ▶ 現金-¥20M / 会計品質+5 / 投資家信頼+5\n"
+        "   ▶ 現金-¥20M / 会計品質+5 / 投資家信頼+5 / 🚀 事業投資+1\n"
         "   【学習ポイント】価格競争は消耗戦。差別化こそが持続的競争優位の源泉です。"
     )
 
