@@ -910,6 +910,8 @@ class GameSession:
         self._force_outside_director_n1: bool = False
         # マクロショック（パンデミック等）が強行された場合の情報
         self._macro_shock_active: dict = {}   # {"name": "...", "pass_prob": 0.2, "fail_reason": "..."}
+        # ⏳ タイマークライシス：未解消の緊急課題（毎ターン対応選択を強制表示）
+        self._timer_crisis: dict = None       # {"id": "cfo_successor", "remaining": 2}
         # 審査ボス戦（審査官との質疑応答）の状態
         self._exam_qs: list = []          # 出題された問題（dictのリスト）
         self._exam_idx: int = 0           # 現在の問題番号
@@ -2040,6 +2042,70 @@ class GameSession:
             one_shot=True,
         )
 
+    # ──────────────────────────────────────────
+    # ⏳ タイマークライシス：後任CFO選定
+    # ──────────────────────────────────────────
+    def _build_cfo_successor_crisis_event(self) -> GameEvent:
+        remaining = self._timer_crisis["remaining"]
+        return GameEvent(
+            id="cfo_successor_crisis",
+            title=f"⏳ タイマークライシス：後任CFO選定（残り{remaining}期）",
+            description=(
+                "CFO逮捕以降、経理部長がCFO職務を代行していますが、これは応急的な体制です。\n\n"
+                "主幹事証券会社・監査法人からは「後任CFOを選任し、財務責任者の体制を\n"
+                "正式に再構築してほしい」との要請が繰り返し届いています。\n\n"
+                f"このまま対応を先送りできるのは、あと{remaining}期までです。\n"
+                "期限を過ぎても代行体制が続く場合、Ⅰの部作成・内部統制報告に遅れが生じ、\n"
+                "上場準備の後退は避けられません。"
+            ),
+            choices=[
+                Choice(
+                    label="A. 後任CFOを選任する（¥30M）",
+                    description="財務責任者の体制を正式に再構築し、クライシスを解消する",
+                    immediate_effect=lambda c: self._resolve_cfo_successor(c),
+                ),
+                Choice(
+                    label="B. 先送りする（経理部長代行を継続）",
+                    description="コストはかからないが、対応できる期数が1つ減る",
+                    immediate_effect=lambda c: self._postpone_cfo_successor(c),
+                ),
+            ],
+            min_n_period=-3,
+            max_n_period=0,
+            one_shot=False,
+        )
+
+    def _resolve_cfo_successor(self, c: Company) -> str:
+        c.cash -= 30
+        c.internal_control_score = min(100, c.internal_control_score + 10)
+        c.investor_trust = min(100, c.investor_trust + 5)
+        self._timer_crisis = None
+        return (
+            "🧑‍💼 後任CFOの選任が完了しました。（¥30M）\n\n"
+            "   ・経理部長による代行体制を解消し、財務責任者の体制を正式に再構築しました。\n"
+            "   ・内部統制+10 / 投資家信頼+5\n\n"
+            "   ▶ タイマークライシス「後任CFO選定」は解消されました。"
+        )
+
+    def _postpone_cfo_successor(self, c: Company) -> str:
+        tc = self._timer_crisis
+        tc["remaining"] -= 1
+        if tc["remaining"] <= 0:
+            c.flags.total_risk_score += 15
+            c.investor_trust = max(0, c.investor_trust - 10)
+            self._timer_crisis = None
+            self._map_fall(1, "⚠ 後任CFO選定 期限切れ — 後退…")
+            return (
+                "⚠️ 後任CFO選定が期限切れとなりました。\n\n"
+                "   ・経理部長代行体制の長期化により、Ⅰの部作成・内部統制報告に遅れが生じました。\n"
+                "   ・リスクスコア+15 / 投資家信頼-10\n\n"
+                "   ▶ ワールドマップ：1マス後退"
+            )
+        return (
+            "⏳ 後任CFOの選任を先送りしました。\n\n"
+            f"   ・経理部長代行体制を継続します。対応できる期数は残り{tc['remaining']}期です。"
+        )
+
     def _rival_static(self) -> dict:
         """🏁 マップ演出にライバルを静止表示するためのパラメータ"""
         rv = getattr(self, "_rival", None)
@@ -2333,6 +2399,11 @@ class GameSession:
             if _trump_cond and (_tidx - _trump_last) >= 2:
                 self._trump_last_offer = _tidx
                 ipo_events.insert(0, self._build_trump_event())
+
+        # ⏳ タイマークライシス：未解消なら最優先で対応選択を毎ターン提示
+        #   （先送りも選べるが、放置したまま自然消滅することはない）
+        if getattr(self, "_timer_crisis", None):
+            ipo_events.insert(0, self._build_cfo_successor_crisis_event())
 
         # ── Q1: 🎪バナー + AGM議決結果表示 ──
         # 日本の定時株主総会は期末後3ヶ月以内（≒翌期Q1）に開催される
@@ -3152,6 +3223,11 @@ class GameSession:
         if not is_good or _force_fall:
             _fall_label = event.title.split('（')[0].strip()[:14]
             self._map_fall(1, f"⚠ {_fall_label} — 後退…")
+
+        # ⏳ CFO逮捕 → タイマークライシス「後任CFO選定」を開始
+        #    以降、解消されるまで毎ターン必ず対応選択を提示する
+        if getattr(event, "id", "") == "WORLD_EXEC_ARREST":
+            self._timer_crisis = {"id": "cfo_successor", "remaining": 2}
 
         # 結果詳細は次ターン冒頭に表示（ゲームイベントと同じ遅延表示）
         self._deferred_outcomes.append((event.title, choice.label, result_msg, is_good))
