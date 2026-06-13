@@ -363,6 +363,12 @@ def _mk_effect(cash=0.0, burn=0.0, ic=0, comp=0, gov=0, at=0, it=0,
     return fn
 
 
+# ⏳ タイマークライシス（30秒砂時計）の対象カテゴリ。
+#   geopolitics=戦争 / epidemic=疫病・災害 / scandal=不祥事 / governance=経営陣
+#   （いずれも世界イベント）に加え、毎ゲーム確実に発火するAI突発クライシス
+#   （category="crisis"）も含めることで「砂時計が一度も出ない」を構造的に防ぐ。
+_CRISIS_CATEGORIES = {"geopolitics", "epidemic", "scandal", "governance", "crisis"}
+
 # 12種類の突発クライシステンプレート
 # effect_a = 対処する（コスト大・リスク回避）
 # effect_b = 先送り/妥協（コスト小・将来リスク）
@@ -2916,7 +2922,6 @@ class GameSession:
         #    時間切れ＝「先送り(B)」を選んだものとして自動進行する。
         #    WorldEvent の category で判定（geopolitics=戦争 / epidemic=疫病・災害 /
         #    scandal=不祥事 / governance=経営陣）。GameEvent（category無し）は対象外。
-        _CRISIS_CATEGORIES = {"geopolitics", "epidemic", "scandal", "governance"}
         _is_crisis = getattr(event, "category", None) in _CRISIS_CATEGORIES
         if _is_crisis:
             self._add(choices_html(event.choices, timer_seconds=30, timer_autofail="B"))
@@ -3363,7 +3368,14 @@ class GameSession:
                                "red"), "event_panel")
         self._add(f'<div class="decision-prompt">👤 社長、緊急対応が必要です。どう判断しますか？</div>')
         self._add("", "clear_advisor")   # 前イベントのアドバイスパネルをクリア
-        self._add(choices_html(event.choices))
+        # ⏳ タイマークライシス：危機系イベントは実時間30秒の砂時計を付与。
+        #    時間切れ＝「先送り(B)」を選んだものとして自動進行する。
+        #    世界イベント（geopolitics/epidemic/scandal/governance）に加え、
+        #    毎ゲーム確実に発火するAI突発クライシス（category="crisis"）も対象。
+        if getattr(event, "category", None) in _CRISIS_CATEGORIES:
+            self._add(choices_html(event.choices, timer_seconds=30, timer_autofail="B"))
+        else:
+            self._add(choices_html(event.choices))
         valid = list("ABCD")[: len(event.choices)]
         self._fortune_choices = event.choices
         self.phase = Phase.FORTUNE_CHOICE
