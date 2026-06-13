@@ -2905,9 +2905,12 @@ class GameSession:
         prompt_text = "👤 社長、緊急対応が必要です。どう判断しますか？" if is_world else "👤 社長、あなたならどう判断しますか？"
         self._add(f'<div class="decision-prompt">{prompt_text}</div>')
         self._add("", "clear_advisor")   # 前イベントのアドバイスパネルをクリア
-        # ⏳ タイマークライシス（id末尾が _crisis）は実時間30秒の砂時計を付与。
+        # ⏳ タイマークライシス：危機系の外部環境イベントは実時間30秒の砂時計を付与。
         #    時間切れ＝「先送り(B)」を選んだものとして自動進行する。
-        _is_crisis = str(getattr(event, "id", "")).endswith("_crisis")
+        #    WorldEvent の category で判定（geopolitics=戦争 / epidemic=疫病・災害 /
+        #    scandal=不祥事 / governance=経営陣）。GameEvent（category無し）は対象外。
+        _CRISIS_CATEGORIES = {"geopolitics", "epidemic", "scandal", "governance"}
+        _is_crisis = getattr(event, "category", None) in _CRISIS_CATEGORIES
         if _is_crisis:
             self._add(choices_html(event.choices, timer_seconds=30, timer_autofail="B"))
         else:
@@ -5672,7 +5675,7 @@ class GameSession:
                 f"乖離率±10%以内が審査での目安です。」<br><br>"
                 f"▶ 投資家信頼-5 / リスクスコア+5",
                 "⚠️ 予実乖離警告 — ④経営管理体制", "yellow"
-            ))
+            ), "event_panel")
 
         # ⑧ 訴訟リスク：IP保護未実施 + 知財フラグなし + N-1期以降
         if (t.n_period >= -1
@@ -5693,7 +5696,7 @@ class GameSession:
                     "弁理士への早急な相談と、権利の有無・侵害可能性の調査が必要です。<br><br>"
                     "▶ リスクスコア+8 / 投資家信頼-5",
                     "⚠️ 知財リスク発生 — ⑧リスク・訴訟・外部要因", "red"
-                ))
+                ), "event_panel")
 
         # ① ガバナンス：取締役会が機能していない（社外役員なし + N-1期以降）
         # 候補内定済み(agm_deferred)または選任否決後の臨時総会対応中(rejected_needs_eogm)は警告しない
@@ -5716,7 +5719,7 @@ class GameSession:
                 "このまま上場申請を進めると審査不通過のリスクが高まります。」<br><br>"
                 "▶ ガバナンス-8 / リスクスコア+10",
                 "🚨 社外役員未選任 — ①ガバナンス・コンプライアンス", "red"
-            ))
+            ), "event_panel")
 
         # ③ 顧客集中：主幹事証券会社（未選定の場合はIPOアドバイザー）から顧客集中指摘（N-2期Q2以降、初回のみ）
         if (t.n_period == -2 and t.quarter >= 2
@@ -5730,7 +5733,7 @@ class GameSession:
                 "③事業継続性・収益性の観点から、顧客集中リスクへの対応方針を<br>"
                 "次回の打ち合わせまでに整理しておいてください。」",
                 "💡 顧客集中リスク事前通知 — ③事業継続性", "cyan"
-            ))
+            ), "event_panel")
 
     # ──────────────────────────────────────────
     # クライシスカスケードチェック（ターン開始前）
@@ -5940,7 +5943,8 @@ class GameSession:
         sh_req = {"growth": 150, "standard": 400, "prime": 800}.get(self.target_market, 150)
         sh_col = "#00cc66" if c.shareholder_count >= sh_req else "#ff4444"
 
-        html_parts = [
+        # ── ヘッダー（会社情報・期・株主数）──
+        header_parts = [
             # ① 会社名（株式会社付き）・業種を明示
             f'<div class="sb-co">{esc(c.name)}株式会社</div>',
             f'<div class="sb-biz">業種：{esc(c.business_type.value)}</div>',
@@ -5962,7 +5966,10 @@ class GameSession:
             *([(f'<div class="sbr"><span style="color:var(--dim)">　潜在株主</span>'
                 f'<span style="color:var(--dim);font-size:11px">{c.potential_shareholders}人（SO保有・未行使）</span></div>')]
                if c.potential_shareholders > 0 else []),
-            '<div class="sb-sec">── 財 務 ──────────</div>',
+        ]
+
+        # ── 財務（折り畳み可能）──
+        finance_rows = [
             f'<div class="sbr"><span>💰 手元資金</span><span style="color:{cc}">¥{c.cash:,.0f}M</span></div>',
             *self._sidebar_finance_rows(c, t, net, netcol, netsign),
             f'<div class="sbr"><span>⏳ 資金持続</span><span style="color:{rwcol}">{"問題なし（黒字）" if rw >= 99 else (f"残り約{rw * 3}ヶ月" if rw >= 4 else f"⚠ 残り約{rw * 3}ヶ月！")}</span></div>',
@@ -5972,6 +5979,24 @@ class GameSession:
                 f'<div class="sbr"><span>📈 成長率/Q</span>'
                 f'<span style="color:{"#00cc66" if _g >= _b else "#ff8844"}">{_g*100:.1f}%'
                 f'<span style="color:var(--dim);font-size:10px">（基礎{_b*100:.0f}%）</span></span></div>')(),
+        ]
+
+        # ── スコア（折り畳み可能）──
+        score_rows = [
+            srow("内統",     min(100, max(0, c.internal_control_score))),
+            srow("コンプラ",  min(100, max(0, c.compliance_score))),
+            srow("会計",     min(100, max(0, c.accounting_quality))),
+            srow("統治",     min(100, max(0, c.governance_score))),
+            srow("監査信頼",  min(100, max(0, c.auditor_trust))),
+            srow("投資家信頼", min(100, max(0, c.investor_trust))),
+            srow("士気",     min(100, max(0, c.employee_morale))),
+            (f'<div class="srow"><span class="srow-lbl">💣上場失敗リスク</span>'
+             f'<span class="srow-val" style="color:{riskcol}">{risk}</span>'
+             f'<div class="mini-bar"><div class="mini-fill" style="width:{min(risk,100)}%;background:{riskcol}"></div></div></div>'),
+        ]
+
+        # ── スコアの下に移動した3ブロック（市況・成長と管理・上場レース）──
+        market_block = [
             '<div class="sb-sec">── 📊 市況（IPOウィンドウ）──</div>',
             # 市況メーター：時価総額の評価倍率に直結
             (lambda _mi=getattr(c, "market_index", 55.0):
@@ -5979,6 +6004,8 @@ class GameSession:
                 f'<span style="color:{"#00cc66" if _mi >= 65 else ("#ffcc00" if _mi >= 35 else "#ff4444")}">'
                 f'{"🐂 強気" if _mi >= 65 else ("〜 中立" if _mi >= 35 else "🐻 弱気")} {_mi:.0f}'
                 f'<span style="color:var(--dim);font-size:10px">（評価×{market_multiplier(c):.2f}）</span></span></div>')(),
+        ]
+        balance_block = [
             '<div class="sb-sec">── 💼 成長と管理のバランス ──</div>',
             # 🚀事業投資（戦略的な成長投資）/ 🏗現場負荷（管理対応に割いた現場リソース）
             (lambda _o=getattr(c, "offense_score", 0), _d=getattr(c, "defense_score", 0):
@@ -5986,6 +6013,8 @@ class GameSession:
                 f'<div class="sbr"><span>🏗 現場負荷</span><span style="color:#ffcc66">{_d}</span></div>'
                 + (f'<div style="font-size:10px;color:#ff8844;text-align:center">⚠ 成長と管理のバランスに注意</div>'
                    if (_o + _d) >= 4 and abs(_o - _d) >= 3 else ''))(),
+        ]
+        race_block = [
             '<div class="sb-sec">── 🏁 上場レース ──────</div>',
             # ライバルとの登山レース（ワールドマップのマス位置）
             (lambda _rv=getattr(self, "_rival", None), _mp=getattr(self, "_map_pos", 0):
@@ -5998,17 +6027,25 @@ class GameSession:
                     + (f'<div style="font-size:10px;color:#ff8866;text-align:center">'
                        f'⚠ 評価-{round((1 - getattr(c, "rival_discount", 0.85)) * 100)}%（先行上場の影響）</div>'
                        if getattr(c, "rival_listed_first", False) else ''))))(),
-            '<div class="sb-sec">── スコア ───────────</div>',
-            srow("内統",     min(100, max(0, c.internal_control_score))),
-            srow("コンプラ",  min(100, max(0, c.compliance_score))),
-            srow("会計",     min(100, max(0, c.accounting_quality))),
-            srow("統治",     min(100, max(0, c.governance_score))),
-            srow("監査信頼",  min(100, max(0, c.auditor_trust))),
-            srow("投資家信頼", min(100, max(0, c.investor_trust))),
-            srow("士気",     min(100, max(0, c.employee_morale))),
-            (f'<div class="srow"><span class="srow-lbl">💣上場失敗リスク</span>'
-             f'<span class="srow-val" style="color:{riskcol}">{risk}</span>'
-             f'<div class="mini-bar"><div class="mini-fill" style="width:{min(risk,100)}%;background:{riskcol}"></div></div></div>'),
+        ]
+
+        # 折り畳みセクション（見出しクリックで開閉・状態はJS側で保持）
+        def collapsible(key, title, body_parts):
+            return (
+                f'<div class="sb-collapse" data-sb-key="{key}">'
+                f'<div class="sb-sec sb-toggle">{title}<span class="sb-caret">▾</span></div>'
+                f'<div class="sb-collapse-body">{"".join(body_parts)}</div>'
+                f'</div>'
+            )
+
+        html_parts = [
+            *header_parts,
+            collapsible("finance", "── 財 務 ──────────", finance_rows),
+            collapsible("score",   "── スコア ───────────", score_rows),
+            # 以下はスコアの下へ移動（スコアを画面内に収めるため）
+            *market_block,
+            *balance_block,
+            *race_block,
             # ④ mood indicator 削除済み
         ]
         return "".join(html_parts)

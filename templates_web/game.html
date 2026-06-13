@@ -180,6 +180,12 @@ html:has(.title-screen) {
 .sb-q-dots   { font-size: 13px; letter-spacing: 2px; font-weight: 700; flex-shrink: 0; }
 .sb-q-ipo    { font-size: 10px; color: #ffd700; }
 .sb-sec      { font-size: 10px; color: var(--gold-dk); border-top: 1px solid #2a5888; margin: 7px 0 4px; padding-top: 4px; letter-spacing: 1px; }
+/* 折り畳みセクション（財務・スコア）：見出しクリックで開閉 */
+.sb-sec.sb-toggle { cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
+.sb-sec.sb-toggle:hover { color: var(--gold); }
+.sb-caret { font-size: 9px; transition: transform .18s ease; opacity: .8; }
+.sb-collapse.collapsed .sb-caret { transform: rotate(-90deg); }
+.sb-collapse.collapsed .sb-collapse-body { display: none; }
 .sbr         { display: flex; justify-content: space-between; font-size: 12px; margin: 2px 0; gap: 4px; }
 .sbr span:first-child { color: var(--dim); flex-shrink: 0; }
 .sbr span:last-child  { font-family: 'Courier New', monospace; text-align: right; }
@@ -2694,6 +2700,26 @@ body:has(.title-screen) #scene-bg { display: none; }
     }
   }
 
+  /* ── サイドバー折り畳み（財務・スコア）：開閉状態を保持し再描画後も維持 ── */
+  var _sbCollapsed = {};   /* { finance:true, score:false ... } 既定は展開 */
+  function applySidebarCollapse() {
+    var secs = sideEl.querySelectorAll('.sb-collapse[data-sb-key]');
+    Array.prototype.forEach.call(secs, function (el) {
+      var key = el.getAttribute('data-sb-key');
+      el.classList.toggle('collapsed', !!_sbCollapsed[key]);
+    });
+  }
+  /* 見出しクリックで開閉トグル（イベント委譲・1度だけ登録）*/
+  sideEl.addEventListener('click', function (e) {
+    var head = e.target.closest && e.target.closest('.sb-toggle');
+    if (!head) return;
+    var wrap = head.closest('.sb-collapse');
+    if (!wrap) return;
+    var key = wrap.getAttribute('data-sb-key');
+    _sbCollapsed[key] = !_sbCollapsed[key];
+    wrap.classList.toggle('collapsed', !!_sbCollapsed[key]);
+  });
+
   /* ── レンダリング ── */
   function render(data) {
     if (data.error) {
@@ -2730,6 +2756,7 @@ body:has(.title-screen) #scene-bg { display: none; }
     }
 
     sideEl.innerHTML = data.sidebar || '';
+    applySidebarCollapse();   /* 財務・スコアの開閉状態を再適用 */
     if (rightSideEl) rightSideEl.innerHTML = data.right_sidebar || '';
     inputEl.placeholder = data.placeholder || '';
     renderButtons(data.buttons || []);
@@ -4194,45 +4221,50 @@ body:has(.title-screen) #scene-bg { display: none; }
     if (overflow > 0) { sc.scrollTop += overflow + 24; }
   }
 
-  /* ── タイプライター（HTML対応・世代チェック付き）── */
+  /* ── タイプライター（HTML対応・世代チェック付き）──
+     【改善A】innerHTML を毎文字再代入すると累積文字列を都度HTMLパースし直すため
+     N文字でO(N²)の負荷になっていた。ここでは要素構造は一度だけ確定させ、
+     各テキストノードに appendData() で1文字ずつ追記する（HTML再パースなし・O(N)）。 */
   function typewriter(el, delay, gen, onDone) {
-    var html = el.innerHTML;            // 全文を退避
     el.classList.remove('tw-pending');  // 表示を有効化
-    el.innerHTML = '';
-    var i = 0, disp = '';
+
+    // 子孫のテキストノードを順に収集し、全文を退避してから空にする（構造は再構築しない）
+    var nodes = [];
+    (function collect(node) {
+      for (var c = node.firstChild; c; c = c.nextSibling) {
+        if (c.nodeType === 3) {              // テキストノード
+          if (c.nodeValue.length) nodes.push(c);
+        } else if (c.nodeType === 1) {       // 要素ノード
+          collect(c);
+        }
+      }
+    })(el);
+    var fulls = nodes.map(function(n) { return n.nodeValue; });
+    nodes.forEach(function(n) { n.nodeValue = ''; });
+
+    function restoreAll() {
+      for (var k = 0; k < nodes.length; k++) nodes[k].nodeValue = fulls[k];
+    }
+
+    var ni = 0, ci = 0, count = 0;
     _typeFinish = function() {
-      el.innerHTML = html;
+      restoreAll();
       _typeFinish = null;
       if (_typeTimer) { clearTimeout(_typeTimer); _typeTimer = null; }
     };
     function step() {
-      if (gen !== _gen) { el.innerHTML = html; _typeFinish = null; return; }
-      if (i >= html.length) {
-        el.innerHTML = html; _typeFinish = null;
+      if (gen !== _gen) { restoreAll(); _typeFinish = null; return; }
+      if (ni >= nodes.length) {
+        _typeFinish = null;
         keepInView(el);
         if (onDone) onDone();
         return;
       }
-      if (html[i] === '<') {
-        var ci = html.indexOf('>', i);
-        if (ci !== -1) {
-          disp += html.substring(i, ci + 1); i = ci + 1;
-          el.innerHTML = disp;
-          _typeTimer = setTimeout(step, 0); return;
-        }
-      }
-      if (html[i] === '&') {
-        var si = html.indexOf(';', i);
-        if (si !== -1 && si - i <= 8) {
-          disp += html.substring(i, si + 1); i = si + 1;
-          el.innerHTML = disp;
-          _typeTimer = setTimeout(step, delay); return;
-        }
-      }
-      disp += html[i]; i++;
-      el.innerHTML = disp;
-      if (i % 2 === 0) playBlip();
-      if (i % 4 === 0) keepInView(el);   // 数文字ごとに下行を追従表示
+      nodes[ni].appendData(fulls[ni].charAt(ci));   // 1文字追記（再パースなし）
+      ci++; count++;
+      if (count % 2 === 0) playBlip();
+      if (count % 4 === 0) keepInView(el);           // 数文字ごとに下行を追従表示
+      if (ci >= fulls[ni].length) { ni++; ci = 0; }  // 次のテキストノードへ
       _typeTimer = setTimeout(step, delay);
     }
     step();
@@ -4296,6 +4328,11 @@ body:has(.title-screen) #scene-bg { display: none; }
       else if (h.indexOf('総会後の社長室') !== -1) sp = 'ceo';
       else if (h.indexOf('今期の状況')    !== -1) sp = 'advisor';
       return { mode: 'type', speaker: sp, sel: '.ain-body' };
+    }
+    /* 危機感・カウントダウン（「残りNQ」等）の独白 → IPO顧問アバター＋タイプ表示。
+       タイプ完了まで次へ進まないため、直後の総会フラッシュに潰されない */
+    if (div.querySelector('.ceo-monologue')) {
+      return { mode: 'type', speaker: 'advisor', sel: '.mono-body' };
     }
     /* 前Q意思決定の結果報告（.do-text あり）→ IPO顧問＋1文字表示 */
     if (div.querySelector('.do-text')) {
@@ -4402,7 +4439,15 @@ body:has(.title-screen) #scene-bg { display: none; }
       _typeTimer = setTimeout(function() { step(gen); }, 2600);
     } else {
       hideNow();
-      _typeTimer = setTimeout(function() { step(gen); }, 360);
+      /* 期の区切り線・テキストパネルが一瞬で消えるのを防ぎ、文量に応じた余韻を持たせる */
+      var dwell = 360;
+      if (el.querySelector('.story-rule')) {
+        dwell = 1300;                                       /* ◆◆◆ 期の区切り ◆◆◆ */
+      } else if (el.querySelector('.story-panel')) {
+        var _len = (el.textContent || '').replace(/\s+/g, '').length;
+        dwell = Math.min(3200, Math.max(1200, _len * 45));  /* 文量に応じ 1.2〜3.2秒 */
+      }
+      _typeTimer = setTimeout(function() { step(gen); }, dwell);
     }
   }
 
