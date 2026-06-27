@@ -4820,6 +4820,9 @@ details[open] > .deferred-detail-sum::before {
   /* ── パネル表示 / 非表示 ─────────────── */
   function showPanel() {
     if (!panelEl) return;
+    /* 取締役会演出（上部アバター）が出ているときは左下パネルを重ねない */
+    var bd = document.getElementById('board-debate');
+    if (bd && bd.classList.contains('bd-show')) return;
     if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
     panelEl.classList.remove('avatar-hidden');
     panelEl.classList.add('avatar-visible');
