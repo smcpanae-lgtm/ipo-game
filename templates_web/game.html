@@ -3496,7 +3496,8 @@ details[open] > .deferred-detail-sum::before {
        社内意思決定（「あなたなら…」）で出現、決断ラベル（ceo-decision）で消滅。
        外部危機イベントは「緊急対応」プロンプトのため対象外。*/
     if (typeof html === 'string') {
-      if (html.indexOf('decision-prompt') !== -1 && html.indexOf('あなたなら') !== -1) {
+      if (html.indexOf('decision-prompt') !== -1 && html.indexOf('あなたなら') !== -1
+          || html.indexOf('ev-intro') !== -1) {
         startBoardDebate();
       } else if (html.indexOf('ceo-decision') !== -1) {
         stopBoardDebate();
