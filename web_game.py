@@ -626,9 +626,19 @@ def map_move_html(from_tile: int, to_tile: int, label: str = "",
     )
 
 
-def story_panel(body: str, title: str = "", cls: str = "gold") -> str:
+def story_panel(body: str, title: str = "", cls: str = "gold", summary: str = "") -> str:
     title_html = f'<div class="panel-title">{title}</div>' if title else ""
-    return f'<div class="story-panel {cls}">{title_html}<div class="panel-body">{body}</div></div>'
+    if summary:
+        body_html = (
+            f'<div class="sp-summary">{summary}</div>'
+            f'<details class="sp-detail">'
+            f'<summary class="sp-detail-sum">詳細を見る</summary>'
+            f'<div class="sp-detail-body">{body}</div>'
+            f'</details>'
+        )
+    else:
+        body_html = body
+    return f'<div class="story-panel {cls}">{title_html}<div class="panel-body">{body_html}</div></div>'
 
 
 def story_rule(text: str, color: str = "cyan") -> str:
@@ -691,7 +701,10 @@ def _rw_label(r: int) -> str:
     return f"⚠ {r}Q（{r * 3}ヶ月）要調達！"
 
 
-def choices_html(choices_list, letters="ABCD", timer_seconds=0, timer_autofail="") -> str:
+def choices_html(choices_list, letters="ABCD", timer_seconds=0, timer_autofail="",
+                 agenda=False, tags=None) -> str:
+    # agenda=True のときは「議案カード」型（短いタイトル＋小さな効果タグ）で表示する。
+    # 既定（agenda=False）は従来表示のまま。クラス・ハンドラは共通なので入力処理は不変。
     color_classes = ["choice-a", "choice-b", "choice-c", "choice-d"]
     parts = []
     for i, ch in enumerate(choices_list):
@@ -726,22 +739,49 @@ def choices_html(choices_list, letters="ABCD", timer_seconds=0, timer_autofail="
                 f'</div>'
             )
 
+        if agenda:
+            # 議案カード型：コスト等の括弧書きを外した短いタイトル＋小さな効果タグ
+            short_title = title_text.split('（')[0].strip()
+            tag = tags[i] if (tags and i < len(tags)) else ""
+            tag_html = f'<div class="agenda-tag">{esc(tag)}</div>' if tag else ""
+            body_inner = (
+                f'<div class="choice-title">{esc(short_title)}</div>'
+                f'{tag_html}'
+                f'{hints_html}'
+            )
+        else:
+            desc_html = (
+                f'<details class="choice-detail">'
+                f'<summary class="choice-detail-sum">詳細を見る</summary>'
+                f'<div class="choice-detail-body">{esc(desc_text)}</div>'
+                f'</details>'
+            ) if desc_text else ""
+            body_inner = (
+                f'<div class="choice-title">{esc(title_text)}</div>'
+                f'{desc_html}'
+                f'{hints_html}'
+            )
         parts.append(
             f'<div class="choice-item {cls}" ondblclick="submitAction(\'{lbl}\')" '
             f'title="ダブルクリックで選択">'
             f'<span class="choice-letter">{lbl}</span>'
             f'<div class="choice-text">'
-            f'<div class="choice-title">{esc(title_text)}</div>'
-            f'<div class="choice-desc">{esc(desc_text)}</div>'
-            f'{hints_html}'
+            f'{body_inner}'
             f'</div>'
             f'</div>'
         )
-    header = (
-        '<div class="choices-header">'
-        '👆 選択肢をダブルクリックで決定'
-        '</div>'
-    )
+    if agenda:
+        header = (
+            '<div class="choices-header">'
+            '🗳 議案 ― ダブルクリックで決議'
+            '</div>'
+        )
+    else:
+        header = (
+            '<div class="choices-header">'
+            '👆 選択肢をダブルクリックで決定'
+            '</div>'
+        )
     # ⏳ タイマークライシス：制限時間を指定された場合は砂時計用の data 属性を付与する
     timer_attr = ""
     timer_bar = ""
@@ -755,8 +795,74 @@ def choices_html(choices_list, letters="ABCD", timer_seconds=0, timer_autofail="
             '<span class="crisis-timer-text">残り--秒</span>'
             '</div>'
         )
-    return (f'<div class="choices-wrapper"{timer_attr}>{timer_bar}{header}'
+    wrap_cls = "choices-wrapper agenda" if agenda else "choices-wrapper"
+    return (f'<div class="{wrap_cls}"{timer_attr}>{timer_bar}{header}'
             f'<div class="choices-container">{"".join(parts)}</div></div>')
+
+
+# ══════════════════════════════════════════════
+# 新イベントパネル（試作）── 短い会話＋議案カード＋決定後の社長一言／学び
+#   対象イベントID のみ新パネルへ分岐。他イベントは完全に従来表示のまま。
+# ══════════════════════════════════════════════
+NEW_PANEL_EVENT_IDS = {"short_review"}
+
+# 議案カードに出す短い効果タグ（イベントID別。長文 hint の代わりにカード上へ常時表示）
+NEW_PANEL_CHOICE_TAGS = {
+    "short_review": ["費用↑ / 信頼↑ / 全可視化", "費用半減 / 範囲限定", "出費なし / リスク残"],
+}
+
+
+def _compress_event_body(text: str, max_sentences: int = 2, max_len: int = 80) -> str:
+    """長文 description から【…ポイント…】を除き、先頭1〜2文を要点として自動抽出する。"""
+    body = _re.sub(r'\n*【[^】]*ポイント[^】]*】.*', '', text, flags=_re.DOTALL)
+    # 鉤括弧と改行をならして1文字列に
+    for ch in ("「", "」", "『", "』"):
+        body = body.replace(ch, "")
+    body = body.replace("\n", "").strip()
+    sents = [s for s in body.split("。") if s.strip()]
+    picked = "。".join(sents[:max_sentences])
+    if picked:
+        picked += "。"
+    if len(picked) > max_len:
+        picked = picked[:max_len].rstrip("、。") + "…"
+    return picked
+
+
+def _extract_learning(text: str) -> str:
+    """description 末尾の【…ポイント…】本文を「学び」1行として取り出す。"""
+    m = _re.search(r'【[^】]*ポイント[^】]*】\s*([^\n]*)', text)
+    return m.group(1).strip() if m else ""
+
+
+def event_intro_card_html(scene_title: str, advisor_body: str) -> str:
+    """新パネル：場面タイトル＋IPO顧問の一言（短い吹き出し）。"""
+    return (
+        f'<div class="ev-intro">'
+        f'<div class="ev-scene">📋 {esc(scene_title)}</div>'
+        f'<div class="ev-speech">'
+        f'<div class="ev-spk"><span class="ev-spk-ava">🧑‍💼</span>IPO顧問</div>'
+        f'<div class="ev-line">{esc(advisor_body)}</div>'
+        f'</div>'
+        f'</div>'
+    )
+
+
+def decision_card_html(ceo_line: str, learning: str) -> str:
+    """新パネル：決定後の社長の一言＋学び1行（数値結果は従来通り次Qレポート）。"""
+    learn_html = (
+        f'<div class="dc-learn"><span class="dc-learn-tag">学び</span>{esc(learning)}</div>'
+        if learning else ""
+    )
+    return (
+        f'<div class="dc-card">'
+        f'<div class="dc-speech">'
+        f'<div class="dc-spk"><span class="dc-spk-ava">👤</span>社長</div>'
+        f'<div class="dc-line">{esc(ceo_line)}</div>'
+        f'</div>'
+        f'<div class="dc-note">📋 数値の結果は次の四半期末の社長報告でご確認ください。</div>'
+        f'{learn_html}'
+        f'</div>'
+    )
 
 
 # ══════════════════════════════════════════════
@@ -2509,6 +2615,16 @@ class GameSession:
                 icon = "✅" if good else "⚠️"
                 border = "#00cc66" if good else "#ff6644"
                 header_color = "#00ffaa" if good else "#ff8866"
+                # 先頭1行を概要として常時表示、残りを折り畳み
+                _res_lines = [ln for ln in res_msg.split("\n") if ln.strip()]
+                _summary_line = _res_lines[0][:70] + ("…" if len(_res_lines[0]) > 70 else "") if _res_lines else ""
+                _has_detail = len(_res_lines) > 1
+                _detail_html = (
+                    f'<details class="deferred-detail">'
+                    f'<summary class="deferred-detail-sum">詳しい結果を見る</summary>'
+                    f'<div class="deferred-detail-body">{esc(res_msg).replace(chr(10), "<br>")}</div>'
+                    f'</details>'
+                ) if _has_detail else ""
                 self._add(
                     f'<div class="deferred-outcome" style="border-left:5px solid {border};'
                     f'background:rgba(255,255,255,.07);padding:12px 16px;margin-bottom:8px;border-radius:4px;'
@@ -2519,7 +2635,8 @@ class GameSession:
                     f'<div style="font-size:12px;font-weight:700;margin-bottom:4px">'
                     f'{icon} {esc(ch_label.lstrip("ABCD. ")[:60])}</div>'
                     f'<div class="do-text" style="font-size:12px;color:{"#99ffcc" if good else "#ffaa88"}">'
-                    f'{esc(res_msg).replace(chr(10), "<br>")}</div>'
+                    f'{esc(_summary_line)}</div>'
+                    f'{_detail_html}'
                     f'</div>'
                 )
             # AIドラマ：複数の意思決定結果をまとめて1回のGemini呼び出しで生成
@@ -2915,9 +3032,25 @@ class GameSession:
         desc = esc(filtered_desc).replace("\n", "<br>")
         # WorldEvent has category attribute; GameEvent does not
         is_world = hasattr(event, 'category')
+        # ── 新パネル（試作）：対象IDのみ「場面＋顧問の一言＋議案カード」型で表示 ──
+        if getattr(event, "id", "") in NEW_PANEL_EVENT_IDS:
+            scene_title = event.title.split('（')[0].strip()
+            advisor_body = _compress_event_body(raw_desc)
+            self._add(event_intro_card_html(scene_title, advisor_body), "event_panel")
+            self._add("", "clear_advisor")
+            self._add(choices_html(event.choices, agenda=True,
+                                   tags=NEW_PANEL_CHOICE_TAGS.get(event.id)))
+            valid = list("ABCD")[: len(event.choices)]
+            self.phase = Phase.EVENT_CHOICE
+            self._ph(f"► 社長のご判断 ({' / '.join(valid)})")
+            return
         panel_title = f"🌍 外部環境イベント：{esc(event.title)}" if is_world else f"📋 社長へのご報告：{esc(event.title)}"
         panel_color = "red" if is_world else "yellow"
-        self._add(story_panel(desc, panel_title, panel_color), "event_panel")
+        # 要点（先頭1〜2文）を常時表示し、残りを折り畳み詳細へ
+        _flat = filtered_desc.replace("\n", "")
+        _sents = [s for s in _flat.split("。") if s.strip()]
+        _summary_esc = esc(("。".join(_sents[:2]) + "。") if len(_sents) >= 2 else _flat[:100])
+        self._add(story_panel(desc, panel_title, panel_color, summary=_summary_esc), "event_panel")
         prompt_text = "👤 社長、緊急対応が必要です。どう判断しますか？" if is_world else "👤 社長、あなたならどう判断しますか？"
         self._add(f'<div class="decision-prompt">{prompt_text}</div>')
         self._add("", "clear_advisor")   # 前イベントのアドバイスパネルをクリア
@@ -2989,16 +3122,22 @@ class GameSession:
         # ── 意思決定を受理したことのみ即時表示（効果の詳細は次Q冒頭に遅延） ──
         action_icon = "✅" if is_good else "⚙️"
         _choice_label_clean = esc(_re.sub(r"^[A-D]\.\s*", "", choice.label)[:60])
-        self._add(
-            f'<div class="decision-accepted">'
-            f'<span class="da-icon">{action_icon}</span>'
-            f'<div class="da-body">'
-            f'<div class="da-title">意思決定を実行しました</div>'
-            f'<div class="da-choice">「{_choice_label_clean}」</div>'
-            f'<div class="da-note">📋 この判断の結果は次の四半期末に社長報告でご確認ください。</div>'
-            f'</div>'
-            f'</div>'
-        )
+        if getattr(event, "id", "") in NEW_PANEL_EVENT_IDS:
+            # 新パネル：社長の一言＋学び1行（数値結果は従来通り次Qレポート）
+            _ceo_action = _re.sub(r"^[A-D]\.\s*", "", choice.label).split('（')[0].strip()
+            _learning = _extract_learning(event.description)
+            self._add(decision_card_html(f"「{_ceo_action}」で進めます。", _learning))
+        else:
+            self._add(
+                f'<div class="decision-accepted">'
+                f'<span class="da-icon">{action_icon}</span>'
+                f'<div class="da-body">'
+                f'<div class="da-title">意思決定を実行しました</div>'
+                f'<div class="da-choice">「{_choice_label_clean}」</div>'
+                f'<div class="da-note">📋 この判断の結果は次の四半期末に社長報告でご確認ください。</div>'
+                f'</div>'
+                f'</div>'
+            )
         # 効果詳細・AIドラマを次ターン冒頭表示用にキューへ積む
         # AGMイベント（agm_n3/n2/n1/n0）はdeferredに入れず、翌Q1バナーで即時表示
         if getattr(event, 'id', '').startswith('agm_n'):

@@ -972,7 +972,9 @@ def _hire_experienced_cfo(company: Company) -> str:
             f"     ④監査法人・主幹事証券会社との窓口\n"
             f"   ▶ 「常勤の正社員CFO」であることが審査上の要件です。\n"
             f"     顧問・非常勤では審査で不十分と指摘されます。\n"
-            f"   ▶ 監査法人はCFOの質・資格・IPO経験を監査受嘱の判断材料にします。")
+            f"   ▶ 監査法人はCFOの質・資格・IPO経験を監査受嘱の判断材料にします。\n"
+            f"   ▶ ※本CFOは執行役員（従業員）としての就任のため、採用＝就任です\n"
+            f"     （取締役を兼ねないため株主総会決議は不要）。")
 
 
 def _hire_cheap_cfo(company: Company) -> str:

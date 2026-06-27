@@ -506,6 +506,266 @@ body:has(.title-screen) #scene-bg { display: none; }
 }
 
 /* ════════════════════════════════════════════
+   🏛 取締役会・熟議演出：役員が議論し社長が悩む
+   （「あなたならどう判断しますか？」で出現／決断で消滅）
+   ※ 画面上部に帯で配置・pointer-events:none で選択肢クリックを妨げない
+════════════════════════════════════════════ */
+#board-debate {
+  position: fixed;
+  top: 74px; left: 50%;
+  transform: translateX(-50%) translateY(-10px);
+  z-index: 1500;
+  pointer-events: none;
+  opacity: 0;
+  width: min(94vw, 560px);
+  transition: opacity .4s ease, transform .4s ease;
+}
+#board-debate.bd-show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.bd-stage {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(120,150,180,.35);
+  box-shadow: 0 10px 36px rgba(0,0,0,.6);
+  background:
+    linear-gradient(180deg, rgba(10,18,30,.72), rgba(10,18,30,.86)),
+    url('/static/bg_boardroom.jpg') center 35% / cover;
+}
+.bd-scene {
+  position: relative;
+  height: 118px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 16px 10px;
+}
+.bd-dir img, .bd-ceo img {
+  display: block;
+  object-fit: cover; object-position: center top;
+  background: #0a1d38;
+}
+/* 役員（左右で議論）*/
+.bd-dir { position: relative; }
+.bd-dir img {
+  width: 52px; height: 52px;
+  border-radius: 8px;
+  border: 1px solid rgba(150,170,190,.5);
+  filter: grayscale(.2) brightness(.92);
+  transition: filter .2s, border-color .2s;
+}
+.bd-dir.bd-talk img {
+  filter: grayscale(0) brightness(1);
+  border-color: #9fc4e6;
+  animation: bd-bob .34s ease-in-out infinite alternate;
+}
+@keyframes bd-bob { from { transform: translateY(0); } to { transform: translateY(-4px); } }
+/* 社長（中央・大きめ・悩む）*/
+.bd-ceo { position: relative; margin: 0 2px; }
+.bd-ceo img {
+  width: 78px; height: 78px;
+  border-radius: 10px;
+  border: 2px solid #c8a84a;
+  box-shadow: 0 0 16px rgba(200,160,60,.4);
+  animation: bd-worry 2.6s ease-in-out infinite;
+}
+@keyframes bd-worry {
+  0%,100% { transform: rotate(-2.5deg); }
+  50%     { transform: rotate(2.5deg); }
+}
+.bd-think {
+  position: absolute; top: -16px; right: -12px;
+  font-size: 21px;
+  animation: bd-float 2.1s ease-in-out infinite;
+}
+.bd-sweat {
+  position: absolute; top: 4px; left: -11px;
+  font-size: 16px;
+  animation: bd-float 1.5s ease-in-out infinite;
+}
+@keyframes bd-float {
+  0%,100% { transform: translateY(0);  opacity: .65; }
+  50%     { transform: translateY(-4px); opacity: 1; }
+}
+/* 役員の発言バブル（中央上に表示）*/
+.bd-bubble {
+  position: absolute; top: 2px; left: 50%;
+  transform: translateX(-50%) translateY(-4px);
+  max-width: 80%;
+  font-family: "メイリオ", Meiryo, sans-serif;
+  font-size: 12px; font-weight: 700;
+  color: #eaf2fb;
+  background: rgba(20,34,54,.96);
+  border: 1px solid rgba(150,180,210,.5);
+  border-radius: 14px;
+  padding: 4px 13px;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity .25s ease, transform .25s ease;
+  box-shadow: 0 4px 14px rgba(0,0,0,.5);
+}
+.bd-bubble.bd-bubble-on { opacity: 1; transform: translateX(-50%) translateY(0); }
+.bd-caption {
+  font-family: "メイリオ", Meiryo, sans-serif;
+  font-size: 12px; font-weight: 700;
+  letter-spacing: .5px;
+  color: #ffd86b;
+  text-align: center;
+  padding: 5px 8px 7px;
+  background: rgba(8,14,24,.85);
+  border-top: 1px solid rgba(120,150,180,.25);
+}
+@media (max-width: 768px) {
+  #board-debate { top: 54px; width: 96vw; }
+  .bd-scene { height: 98px; gap: 8px; padding: 9px 10px 8px; }
+  .bd-ceo img { width: 64px; height: 64px; }
+  .bd-dir img { width: 44px; height: 44px; }
+  .bd-caption { font-size: 11px; }
+  .bd-bubble { font-size: 11px; }
+}
+
+/* ════════════════════════════════════════════
+   🗳 株主総会・議決演出：賛成率ゲージが伸び→可決/否決スタンプ
+   （議決結果の表示直前にクライアント側で発火）
+════════════════════════════════════════════ */
+#agm-vote-overlay {
+  position: fixed; inset: 0;
+  z-index: 8050;             /* ガベル(8000)より前面の最重要演出 */
+  display: none;
+  align-items: center; justify-content: center;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(4,10,22,.55), rgba(4,10,22,.78));
+}
+#agm-vote-overlay.agm-show { display: flex; animation: agmFade 2.9s ease both; }
+@keyframes agmFade { 0%{opacity:0;} 7%{opacity:1;} 86%{opacity:1;} 100%{opacity:0;} }
+.agm-card {
+  position: relative;
+  width: min(90vw, 460px);
+  padding: 22px 26px 26px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(18,28,44,.97), rgba(12,20,34,.98));
+  border: 1px solid rgba(140,170,200,.4);
+  box-shadow: 0 16px 48px rgba(0,0,0,.7);
+  font-family: "メイリオ", Meiryo, sans-serif;
+  text-align: center;
+}
+.agm-title {
+  font-size: 15px; font-weight: 800; letter-spacing: 2px;
+  color: #d6e4f4; margin-bottom: 16px;
+}
+.agm-gauge {
+  position: relative;
+  height: 26px; border-radius: 13px;
+  background: rgba(80,92,108,.4);
+  border: 1px solid rgba(150,170,190,.35);
+  overflow: hidden;
+}
+.agm-gauge-fill {
+  height: 100%; width: 0%;
+  border-radius: 13px 0 0 13px;
+  background: linear-gradient(90deg, #2f7d52, #3fbf7a);
+  transition: width 1.2s cubic-bezier(.22,.61,.36,1);
+}
+.agm-vote-overlay-bad .agm-gauge-fill {
+  background: linear-gradient(90deg, #9c5a2b, #d98a3f);
+}
+/* 2/3（特別決議）の目安ライン */
+.agm-gauge-mark {
+  position: absolute; top: -3px; bottom: -3px; left: 66.6%;
+  width: 2px; background: rgba(255,255,255,.55);
+}
+.agm-gauge-label {
+  margin-top: 9px;
+  font-size: 13px; font-weight: 700;
+  color: #cfe0f2;
+  font-variant-numeric: tabular-nums;
+}
+.agm-stamp {
+  position: absolute; left: 50%; top: 54%;
+  transform: translate(-50%,-50%) rotate(-8deg) scale(2.6);
+  font-size: 46px; font-weight: 800; letter-spacing: 10px;
+  padding: 8px 26px; border-radius: 10px;
+  opacity: 0;
+  animation: agmStamp 2.9s ease both;
+}
+.agm-stamp.agm-pass {
+  color: #ffe07a; border: 5px solid #ffd34d;
+  background: rgba(20,40,18,.78);
+  text-shadow: 0 0 22px rgba(255,210,70,.7);
+  box-shadow: 0 0 34px rgba(255,210,70,.4);
+}
+.agm-stamp.agm-fail {
+  color: #ff9a6a; border: 5px solid #ff7a44;
+  background: rgba(46,16,12,.8);
+  text-shadow: 0 0 22px rgba(255,110,60,.7);
+  box-shadow: 0 0 34px rgba(255,110,60,.4);
+}
+@keyframes agmStamp {
+  0%, 48% { opacity: 0; transform: translate(-50%,-50%) rotate(-8deg) scale(2.6); }
+  55%     { opacity: 1; transform: translate(-50%,-50%) rotate(-8deg) scale(1); }
+  86%     { opacity: 1; }
+  100%    { opacity: 0; }
+}
+
+/* ── 投資家のざわめき（騒然）フェーズ ── */
+.agm-crowd {
+  position: relative;
+  height: 132px;
+  margin-bottom: 14px;
+  display: none;
+}
+.agm-card.agm-noise .agm-crowd { display: block; }
+.agm-card.agm-noise .agm-gauge,
+.agm-card.agm-noise .agm-gauge-label { opacity: .25; filter: grayscale(.6); }
+.agm-card.agm-noise { animation: agmShake .22s linear infinite; }
+@keyframes agmShake {
+  0%{transform:translate(0,0);} 25%{transform:translate(-1.5px,1px);}
+  50%{transform:translate(1.5px,-1px);} 75%{transform:translate(-1px,-1px);}
+  100%{transform:translate(0,0);}
+}
+.agm-inv {
+  position: absolute; bottom: 0;
+  width: 60px; height: 60px; border-radius: 50%;
+  overflow: hidden; border: 2px solid rgba(150,170,190,.45);
+  background: rgba(10,18,30,.6);
+}
+.agm-inv img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.agm-inv.agm-l { left: 8%; }
+.agm-inv.agm-r { right: 8%; }
+.agm-inv.agm-shout { animation: agmShout .16s ease-in-out infinite alternate; }
+@keyframes agmShout {
+  from{transform:translateY(0) scale(1);}
+  to{transform:translateY(-4px) scale(1.05);}
+}
+.agm-yell {
+  position: absolute;
+  max-width: 58%;
+  padding: 5px 11px; border-radius: 11px;
+  font-size: 12px; font-weight: 800; line-height: 1.3;
+  color: #fff2e6;
+  background: linear-gradient(180deg, rgba(120,46,32,.96), rgba(92,30,22,.97));
+  border: 1px solid rgba(255,150,110,.5);
+  box-shadow: 0 4px 14px rgba(0,0,0,.5);
+  opacity: 0;
+  white-space: nowrap;
+}
+.agm-yell.agm-pop { animation: agmYell .9s ease both; }
+@keyframes agmYell {
+  0%   { opacity: 0; transform: translateY(8px) scale(.7); }
+  18%  { opacity: 1; transform: translateY(0) scale(1.06); }
+  30%  { transform: scale(1); }
+  78%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-6px) scale(.96); }
+}
+
+@media (max-width: 768px) {
+  .agm-card { width: 92vw; padding: 18px 18px 22px; }
+  .agm-stamp { font-size: 38px; letter-spacing: 8px; }
+  .agm-crowd { height: 116px; }
+  .agm-inv { width: 50px; height: 50px; }
+  .agm-yell { font-size: 11px; max-width: 64%; }
+}
+
+/* ════════════════════════════════════════════
    💓 タイマークライシス：残り5秒の心臓バクバク演出
    （砂時計が urgent に入ると最前面でドクン…ドクンと脈打つ）
 ════════════════════════════════════════════ */
@@ -966,6 +1226,182 @@ body:has(.title-screen) #scene-bg { display: none; }
 .choice-desc  { font-size: 12px; color: var(--dim); }
 .choice-hints { margin-top: 5px; display: flex; gap: 14px; flex-wrap: wrap; }
 .choice-hints-hidden { display: none !important; }   /* IPO先生に相談するまで非表示 */
+
+/* ─── 折り畳み共通スタイル（グレー基調・メイリオ・一括表示） ─── */
+details { font-family: "メイリオ", Meiryo, sans-serif; }
+summary { cursor: pointer; user-select: none; list-style: none; }
+summary::-webkit-details-marker { display: none; }
+
+/* イベント本文（story_panel 内）*/
+.sp-summary {
+  font-family: "メイリオ", Meiryo, sans-serif;
+  font-size: 13px;
+  line-height: 1.7;
+  margin-bottom: 4px;
+}
+/* ▼ 詳細トグル共通：グラデのピル＋シェブロン回転＋hoverで浮く */
+.sp-detail-sum, .choice-detail-sum, .deferred-detail-sum {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: "メイリオ", Meiryo, sans-serif;
+  color: #aebccc;
+  background: linear-gradient(180deg, rgba(72,88,106,.5), rgba(48,60,74,.5));
+  border: 1px solid #4a5a6c;
+  border-radius: 7px;
+  transition: color .15s, background .15s, border-color .15s, transform .12s, box-shadow .15s;
+}
+.sp-detail-sum::before, .choice-detail-sum::before, .deferred-detail-sum::before {
+  content: '\25BE';                 /* ▾ シェブロン（閉＝下向き）*/
+  font-size: 1em; line-height: 1;
+  color: #8aa0b6;
+  transform: rotate(0deg);
+  transition: transform .22s ease, color .15s;
+}
+details[open] > .sp-detail-sum::before,
+details[open] > .choice-detail-sum::before,
+details[open] > .deferred-detail-sum::before {
+  transform: rotate(180deg);        /* 開＝上向きへ回転 */
+  color: #cce8ff;
+}
+.sp-detail-sum:hover, .choice-detail-sum:hover, .deferred-detail-sum:hover {
+  color: #eaf3ff;
+  background: linear-gradient(180deg, rgba(94,114,136,.62), rgba(64,80,98,.62));
+  border-color: #7c95af;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0,0,0,.35);
+}
+.sp-detail-sum:hover::before, .choice-detail-sum:hover::before, .deferred-detail-sum:hover::before { color: #cce8ff; }
+.sp-detail-sum:active, .choice-detail-sum:active, .deferred-detail-sum:active { transform: translateY(0); }
+
+.sp-detail-sum       { font-size: 12px; padding: 4px 13px; margin-top: 6px; }
+.choice-detail-sum   { font-size: 11px; padding: 3px 11px; margin-top: 5px; }
+.deferred-detail-sum { font-size: 11px; padding: 4px 12px; margin-top: 7px; }
+
+.sp-detail-body {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,.05);
+  border-left: 3px solid #3a4a5c;
+  border-radius: 3px;
+  font-size: 12px;
+  line-height: 1.8;
+  color: #aac4dc;
+}
+
+/* 選択肢の詳細 */
+.choice-detail > summary.choice-detail-sum {
+  display: inline-block;
+  font-size: 11px;
+  color: #8a9aaa;
+  padding: 1px 6px;
+  border: 1px solid #3a4a5c;
+  border-radius: 3px;
+  margin-top: 4px;
+  transition: color .15s;
+}
+.choice-detail > summary.choice-detail-sum:hover { color: #cce8ff; }
+.choice-detail-body {
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: rgba(255,255,255,.05);
+  border-left: 2px solid #4a5a6c;
+  border-radius: 2px;
+  font-size: 11px;
+  line-height: 1.7;
+  color: #9ab0c8;
+}
+
+/* 前Q結果の詳しい結果 */
+.deferred-detail > summary.deferred-detail-sum {
+  display: inline-block;
+  font-size: 11px;
+  color: #8a9aaa;
+  padding: 2px 8px;
+  border: 1px solid #3a4a5c;
+  border-radius: 3px;
+  margin-top: 6px;
+  transition: color .15s;
+}
+.deferred-detail > summary.deferred-detail-sum:hover { color: #cce8ff; }
+.deferred-detail-body {
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,.04);
+  border-left: 2px solid #4a5a6c;
+  border-radius: 2px;
+  font-size: 11px;
+  line-height: 1.7;
+  color: #9ab0c8;
+}
+
+/* ─── 新イベントパネル（試作）：場面＋顧問の一言／議案カード／決定後カード ───
+   グレー基調・メイリオ。短い会話で文字量を抑える。 */
+.ev-intro, .dc-card {
+  font-family: "メイリオ", Meiryo, sans-serif;
+  background: rgba(38,38,42,.92);
+  border: 1px solid rgba(120,120,128,.40);
+  border-radius: 9px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+}
+.ev-scene {
+  font-size: 12px; font-weight: 700; letter-spacing: .5px;
+  color: #c9c9d0;
+  padding-bottom: 8px; margin-bottom: 9px;
+  border-bottom: 1px solid rgba(120,120,128,.30);
+}
+.ev-speech { display: flex; flex-direction: column; gap: 5px; }
+.ev-spk, .dc-spk {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 700; color: #9a9aa4;
+}
+.ev-spk-ava, .dc-spk-ava { font-size: 15px; }
+.ev-line {
+  background: rgba(60,60,66,.55);
+  border-left: 3px solid #8a8a93;
+  border-radius: 0 7px 7px 0;
+  padding: 8px 11px;
+  font-size: 13px; line-height: 1.7; color: #e3e3e8;
+}
+/* 議案カード（agenda）：青系の選択肢をグレー基調へ上書き */
+.choices-wrapper.agenda .choice-item {
+  background: linear-gradient(135deg, rgba(54,54,60,.96) 0%, rgba(44,44,49,.96) 100%);
+}
+.choices-wrapper.agenda .choice-item:hover {
+  background: linear-gradient(135deg, rgba(68,68,76,.98) 0%, rgba(56,56,63,.98) 100%);
+  box-shadow: 0 4px 16px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08);
+  outline: 2px solid rgba(180,180,190,.35);
+}
+.agenda-tag {
+  margin-top: 5px;
+  display: inline-block;
+  font-size: 11px; color: #b7b7c0;
+  background: rgba(120,120,128,.18);
+  border: 1px solid rgba(120,120,128,.32);
+  border-radius: 5px;
+  padding: 2px 8px;
+}
+/* 決定後カード：社長の一言＋学び */
+.dc-speech { display: flex; flex-direction: column; gap: 5px; margin-bottom: 8px; }
+.dc-line {
+  background: rgba(60,60,66,.55);
+  border-left: 3px solid #b5963f;
+  border-radius: 0 7px 7px 0;
+  padding: 8px 11px;
+  font-size: 13px; line-height: 1.7; color: #ececf0;
+}
+.dc-note { font-size: 11px; color: #8e8e98; font-style: italic; margin-bottom: 8px; }
+.dc-learn {
+  display: flex; align-items: flex-start; gap: 8px;
+  font-size: 12px; line-height: 1.6; color: #d6d6dc;
+  background: rgba(120,120,128,.12);
+  border-radius: 6px; padding: 8px 10px;
+}
+.dc-learn-tag {
+  flex: none;
+  font-size: 10px; font-weight: 700; color: #2a2a2e;
+  background: #b8b8c0; border-radius: 4px;
+  padding: 1px 7px; margin-top: 1px;
+}
 .hint-profit  { font-size: 12px; color: var(--green); }
 .hint-risk    { font-size: 12px; color: var(--yellow); }
 
@@ -2105,6 +2541,37 @@ body:has(.title-screen) #scene-bg { display: none; }
     <div class="gavel-decided">決 定</div>
   </div>
 </div>
+<!-- 🏛 取締役会・熟議演出：役員が議論し社長が悩む -->
+<div id="board-debate">
+  <div class="bd-stage">
+    <div class="bd-scene">
+      <div class="bd-bubble" id="bd-bubble"></div>
+      <div class="bd-ceo">
+        <div class="bd-sweat">💦</div>
+        <div class="bd-think">💭</div>
+        <img src="/static/ceo_normal.png" alt="社長">
+      </div>
+      <div class="bd-dir"><img src="/static/advisor_normal.png" data-normal="/static/advisor_normal.png" data-mouth="/static/advisor_mouth.png" alt="IPO顧問"></div>
+    </div>
+    <div class="bd-caption">🏛 IPO顧問と協議中 — 社長、あなたならどう判断しますか？</div>
+  </div>
+</div>
+<!-- 🗳 株主総会・議決演出：賛成率ゲージ＋可決/否決スタンプ -->
+<div id="agm-vote-overlay">
+  <div class="agm-card">
+    <div class="agm-title">🗳 採決の結果</div>
+    <div class="agm-crowd" id="agm-crowd">
+      <div class="agm-inv agm-l"><img id="agm-inv-l" src="/static/investor_a_normal.png" data-normal="/static/investor_a_normal.png" data-mouth="/static/investor_a_mouth.png" alt="投資家"></div>
+      <div class="agm-inv agm-r"><img id="agm-inv-r" src="/static/investor_b_normal.png" data-normal="/static/investor_b_normal.png" data-mouth="/static/investor_b_mouth.png" alt="投資家"></div>
+    </div>
+    <div class="agm-gauge">
+      <div class="agm-gauge-fill" id="agm-gauge-fill"></div>
+      <div class="agm-gauge-mark"></div>
+    </div>
+    <div class="agm-gauge-label" id="agm-gauge-label">集計中…</div>
+    <div class="agm-stamp" id="agm-stamp"></div>
+  </div>
+</div>
 <!-- 💓 タイマークライシス：残り5秒の心臓バクバク演出 -->
 <div id="heart-pound-overlay">
   <img class="heart-pound-img" src="/static/heart_pound.png" alt="">
@@ -2681,10 +3148,152 @@ body:has(.title-screen) #scene-bg { display: none; }
     _gavelTimer = setTimeout(function(){ ov.classList.remove('gavel-show'); }, 2050);
   }
 
+  /* 🏛 取締役会・熟議演出：役員が口パク＋吹き出しでループ、社長が悩む */
+  var _bdTurn = null, _bdMouth = null;
+  var _bdLines = [
+    '慎重に進めるべきです', '攻めるなら今しかない', 'リスクが大きすぎます',
+    'コストに見合いますか', '前例を確認しましょう', '株主への説明は？',
+    'スピード勝負です', '守りを固めるべきだ', 'ここは社長のご決断を',
+    '市場の反応が読めません', '監査法人は何と？', '将来への投資です'
+  ];
+  function startBoardDebate() {
+    var ov = document.getElementById('board-debate');
+    if (!ov) return;
+    ov.classList.add('bd-show');
+    var dirs = ov.querySelectorAll('.bd-dir');
+    var bubble = document.getElementById('bd-bubble');
+    if (!dirs.length || !bubble) return;
+    clearInterval(_bdTurn); clearInterval(_bdMouth);
+    function turn() {
+      dirs.forEach(function (d) {
+        d.classList.remove('bd-talk');
+        var im = d.querySelector('img');
+        if (im) im.src = im.getAttribute('data-normal');
+      });
+      var d = dirs[Math.floor(Math.random() * dirs.length)];
+      d.classList.add('bd-talk');
+      var im = d.querySelector('img');
+      var mouth = im.getAttribute('data-mouth'), normal = im.getAttribute('data-normal');
+      var flip = false;
+      clearInterval(_bdMouth);
+      _bdMouth = setInterval(function () { flip = !flip; im.src = flip ? mouth : normal; }, 150);
+      bubble.textContent = _bdLines[Math.floor(Math.random() * _bdLines.length)];
+      bubble.classList.add('bd-bubble-on');
+    }
+    turn();
+    _bdTurn = setInterval(turn, 1600);
+  }
+  function stopBoardDebate() {
+    var ov = document.getElementById('board-debate');
+    clearInterval(_bdTurn); clearInterval(_bdMouth);
+    _bdTurn = null; _bdMouth = null;
+    if (ov) ov.classList.remove('bd-show');
+  }
+
+  /* 🗳 株主総会・議決演出：①投資家のざわめき→②集計→③可決/否決スタンプ＋議事槌音 */
+  var _agmTimer = null;
+  var _agmNoiseTimers = [];
+  /* 投資家の怒号・要求セリフ */
+  var _agmYells = [
+    '経営責任を問う！', '配当はどうなる！', '説明を求める！',
+    '株価が下がったぞ！', '社長は辞任すべきだ！', '誠意を見せろ！',
+    'もっと還元を！', 'ガバナンスは大丈夫か！', '成長戦略を示せ！',
+    '内部留保を吐き出せ！', '監査はどうなっている！', '我々は納得できん！'
+  ];
+  function _agmClearNoise() {
+    _agmNoiseTimers.forEach(function (t) { clearTimeout(t); clearInterval(t); });
+    _agmNoiseTimers = [];
+  }
+  /* ①ざわめきフェーズ：投資家2名が口パク＋怒号の吹き出しが次々ポップ */
+  function _agmNoise(card, done) {
+    var crowd = document.getElementById('agm-crowd');
+    var imgs  = [document.getElementById('agm-inv-l'), document.getElementById('agm-inv-r')];
+    card.classList.add('agm-noise');
+    imgs.forEach(function (im) { if (im) im.parentNode.classList.add('agm-shout'); });
+    /* 口パク */
+    var mouth = false;
+    _agmNoiseTimers.push(setInterval(function () {
+      mouth = !mouth;
+      imgs.forEach(function (im) {
+        if (im) im.src = mouth ? im.getAttribute('data-mouth') : im.getAttribute('data-normal');
+      });
+    }, 150));
+    /* 怒号の吹き出しを次々に表示 */
+    function popYell(delay) {
+      _agmNoiseTimers.push(setTimeout(function () {
+        var el = document.createElement('div');
+        el.className = 'agm-yell';
+        el.textContent = _agmYells[Math.floor(Math.random() * _agmYells.length)];
+        var fromL = Math.random() < 0.5;
+        el.style.top = (8 + Math.random() * 46) + '%';
+        if (fromL) { el.style.left = '14%'; } else { el.style.right = '14%'; }
+        crowd.appendChild(el);
+        void el.offsetWidth;
+        el.classList.add('agm-pop');
+        if (window._slotSfx) window._slotSfx.reelStop(true);
+        _agmNoiseTimers.push(setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 950));
+      }, delay));
+    }
+    [0, 320, 600, 940, 1280, 1620].forEach(popYell);
+    /* ②静聴→③結果へ */
+    _agmNoiseTimers.push(setTimeout(function () {
+      card.classList.remove('agm-noise');
+      imgs.forEach(function (im) { if (im) im.parentNode.classList.remove('agm-shout', 'agm-shout'); });
+      // 口パク停止＋通常顔に戻す
+      _agmClearNoise();
+      imgs.forEach(function (im) { if (im) { im.parentNode.classList.remove('agm-shout'); im.src = im.getAttribute('data-normal'); } });
+      done();
+    }, 2200));
+  }
+  /* ③結果発表：ゲージが伸び→スタンプ＋議事槌音 */
+  function _agmReveal(ov, rate, isGood) {
+    var fill  = document.getElementById('agm-gauge-fill');
+    var label = document.getElementById('agm-gauge-label');
+    var stamp = document.getElementById('agm-stamp');
+    label.textContent = '集計中…';
+    fill.style.transition = 'none'; fill.style.width = '0%';
+    void ov.offsetWidth;
+    /* スタンプアニメをリセット再生 */
+    stamp.style.animation = 'none'; void stamp.offsetWidth; stamp.style.animation = '';
+    setTimeout(function () {
+      fill.style.transition = '';
+      fill.style.width = rate + '%';
+    }, 60);
+    var shown = 0;
+    clearInterval(_agmTimer);
+    _agmTimer = setInterval(function () {
+      shown += Math.max(1, Math.round(rate / 18));
+      if (shown >= rate) { shown = rate; clearInterval(_agmTimer); }
+      label.textContent = '賛成率 ' + shown + '％';
+    }, 70);
+    setTimeout(function () { if (window._slotSfx) window._slotSfx.reelStop(true); }, 1400);
+    setTimeout(function () { ov.classList.remove('agm-show'); }, 2950);
+  }
+  function playAgmVote(rate, isGood) {
+    var ov = document.getElementById('agm-vote-overlay');
+    if (!ov) return;
+    var card = ov.querySelector('.agm-card');
+    var stamp = document.getElementById('agm-stamp');
+    rate = Math.max(0, Math.min(100, rate || (isGood ? 78 : 48)));
+    ov.classList.toggle('agm-vote-overlay-bad', !isGood);
+    stamp.className = 'agm-stamp ' + (isGood ? 'agm-pass' : 'agm-fail');
+    stamp.textContent = isGood ? '可 決' : '否 決';
+    /* リセットして再生 */
+    _agmClearNoise();
+    ov.classList.remove('agm-show');
+    /* オーバーレイ全体の表示時間 = ざわめき(2.2s)＋結果(2.95s) ≒ 5.2s */
+    ov.style.animationDuration = '5.2s';
+    void ov.offsetWidth;
+    ov.classList.add('agm-show');
+    /* ①ざわめき → ③結果発表 */
+    _agmNoise(card, function () { _agmReveal(ov, rate, isGood); });
+  }
+
   /* 選択肢カードのダブルクリックで呼ばれるエイリアス */
   window.submitAction = function (value) {
     /* ダブルクリックによるテキスト選択を解除（ブラウザの選択メニュー抑止）*/
     try { window.getSelection().removeAllRanges(); } catch (_) {}
+    stopBoardDebate();   /* 🏛 決断した瞬間に熟議演出を消す */
     if (!_actionInProgress) playGavel();
     window.gameAction(value);
   };
@@ -2883,6 +3492,25 @@ body:has(.title-screen) #scene-bg { display: none; }
     if (_ctw) startCrisisTimer(_ctw);
     /* 🏛 シーン背景の自動切替（取締役会・株主総会・社長室）*/
     if (window.SceneSystem) window.SceneSystem.update(div, itemType);
+    /* 🏛 取締役会・熟議演出のON/OFF（生HTML文字列で判定＝タイプライターの影響を受けない）
+       社内意思決定（「あなたなら…」）で出現、決断ラベル（ceo-decision）で消滅。
+       外部危機イベントは「緊急対応」プロンプトのため対象外。*/
+    if (typeof html === 'string') {
+      if (html.indexOf('decision-prompt') !== -1 && html.indexOf('あなたなら') !== -1) {
+        startBoardDebate();
+      } else if (html.indexOf('ceo-decision') !== -1) {
+        stopBoardDebate();
+      }
+      /* 🗳 株主総会の議決結果が出たら採決演出を発火（可決/否決＋賛成率）
+         ※「総会 議決結果」（全角スペース）の結果パネル本体のみ。
+            「総会の議決結果をご確認ください」等の案内文では発火させない */
+      if (html.indexOf('株主総会 議決結果') !== -1) {
+        var _isGood = html.indexOf('否決') === -1;
+        var _m = html.match(/賛成率[約]?\s*(\d+)/);
+        var _rate = _m ? parseInt(_m[1], 10) : (_isGood ? 78 : 48);
+        playAgmVote(_rate, _isGood);
+      }
+    }
     /* タイトル画面：localStorageにセーブデータがあれば再開ボタンをクライアント側で注入
        （サーバー側ファイルが存在しない環境＝クラウドデプロイ時に対応） */
     if (itemType === 'title') {
@@ -4281,7 +4909,7 @@ body:has(.title-screen) #scene-bg { display: none; }
       for (var c = node.firstChild; c; c = c.nextSibling) {
         if (c.nodeType === 3) {              // テキストノード
           if (c.nodeValue.length) nodes.push(c);
-        } else if (c.nodeType === 1) {       // 要素ノード
+        } else if (c.nodeType === 1 && c.tagName !== 'DETAILS') {  // 要素ノード（折り畳み内は除外）
           collect(c);
         }
       }
