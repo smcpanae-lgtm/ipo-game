@@ -1112,6 +1112,8 @@ class GameSession:
         self._last_gemini_error: str = ""
         # IPO先生アドバイス表示済みフラグ（同一イベント内の二重表示防止用・サーバー側ガード）
         self._advisor_shown: bool = False
+        # AGMナラティブ表示後に次イベント前でCONTINUE区切りを挿入するフラグ
+        self._agm_narrative_break: bool = False
         # 前Qの意思決定結果を次ターン冒頭に表示するためのキュー
         # [(event_title, choice_label, result_msg, is_good), ...]
         self._deferred_outcomes: list = []
@@ -2901,6 +2903,7 @@ class GameSession:
                 )
                 self._render_agm_narrative(agm_narrative, is_good=True,
                     n_period=prev_n)
+                self._agm_narrative_break = True
 
             elif self._pending_agm_result:
                 # ── N-2期〜N期Q1：Q4で事前決議した結果を即時表示 ──
@@ -2939,6 +2942,7 @@ class GameSession:
                     agm_result=self._pending_agm_result, n_period=prev_n)
                 self._pending_agm_result = ""
                 self._pending_agm_choice_label = ""
+                self._agm_narrative_break = True
             # Q4 AGMで繰り延べたスコア変動をQ1冒頭に適用
             if self._agm_pending_score_changes:
                 _score_keys_all = ['internal_control_score', 'accounting_quality', 'compliance_score',
@@ -3098,6 +3102,13 @@ class GameSession:
             self._pending_fortune = world_evt   # 通常の世界イベント
         self.pending_events = ipo_events
         self.pending_event_idx = 0
+
+        # AGMナラティブを表示した直後は一拍置いてから最初のイベントを出す
+        if getattr(self, "_agm_narrative_break", False):
+            self._agm_narrative_break = False
+            self.phase = Phase.CONTINUE
+            self._next_action = "next_event" if self.pending_events else "advance_turn"
+            return
 
         if self.pending_events:
             self._show_next_event()

@@ -4976,6 +4976,10 @@ details[open] > .deferred-detail-sum::before {
     /* イベント説明（社長へのご報告 / 突発 / 重要イベント）
        話者判定はパネルタイトルと本文の冒頭（「●●からの報告がありました」等）で行う。
        冒頭限定にすることで本文中の「主幹事」「CFO」等への誤反応を防ぐ */
+    /* 新パネル（ev-intro）：場面タイトル＋IPO顧問の一言 → IPO顧問アバター＋タイプ表示 */
+    if (div.querySelector('.ev-intro')) {
+      return { mode: 'type', speaker: 'advisor', sel: '.ev-line' };
+    }
     if (itemType === 'event_panel') {
       var head2 = (div.querySelector('.panel-title') || {}).textContent || '';
       var lead2 = ((div.querySelector('.panel-body') || {}).textContent || '').slice(0, 24);
