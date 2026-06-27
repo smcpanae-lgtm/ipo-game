@@ -801,14 +801,116 @@ def choices_html(choices_list, letters="ABCD", timer_seconds=0, timer_autofail="
 
 
 # ══════════════════════════════════════════════
-# 新イベントパネル（試作）── 短い会話＋議案カード＋決定後の社長一言／学び
-#   対象イベントID のみ新パネルへ分岐。他イベントは完全に従来表示のまま。
+# 新イベントパネル ── 場面タイトル＋顧問一言＋議案カード形式
+#   対象イベントID のみ新パネルへ分岐。WorldEvent・AGM動的生成は従来表示のまま。
 # ══════════════════════════════════════════════
-NEW_PANEL_EVENT_IDS = {"short_review"}
+NEW_PANEL_EVENT_IDS = {
+    # ── N-3期 体制構築 ──
+    "short_review", "voucher_management", "accrual_accounting",
+    "inventory_management", "labor_management", "job_separation",
+    "antisocial_check", "related_party_transactions", "outside_director",
+    "audit_firm_selection", "series_a_fundraising", "jsox_preparation",
+    "cfo_hiring", "business_plan", "org_building", "it_systems",
+    "underwriter_selection",
+    # ── 成長・戦略 ──
+    "sales_growth_early", "sales_growth_late",
+    # ── 開示・株式事務 ──
+    "stock_admin", "ir_setup", "prospectus_preparation", "ipo_pricing",
+    # ── 株主総会（AGM選択議案） ──
+    "agm_n3", "agm_n2", "agm_n1", "agm_n0",
+    "agm_angel_exit", "agm_vc_grilling", "agm_dilution",
+    # ── 取締役会・監査役 ──
+    "board_strategy", "board_compensation",
+    "kansayaku_report", "kansayaku_independence",
+    # ── 株式報酬・資金調達 ──
+    "so_program", "esop_setup", "n_so_exercise", "series_bc_fundraising",
+    # ── 上場直前 ──
+    "preipo_roadshow", "public_offering", "market_selection",
+    # ── コンプライアンス・ガバナンス ──
+    "insider_trading_prevention", "whistleblower", "esg_disclosure",
+    "stock_split", "preferred_conversion", "disclosure_drill",
+    "lockup_policy", "authority_rules", "budget_control",
+    "internal_audit", "ip_protection", "accounting_auditor",
+    "final_listing_procedure", "outside_director_n1",
+    "eogm_articles_amendment", "governance_report_fix",
+    # ── 経営課題 ──
+    "monthly_closing", "org_conflict", "profit_manipulation",
+    "customer_concentration", "key_person_risk",
+}
 
-# 議案カードに出す短い効果タグ（イベントID別。長文 hint の代わりにカード上へ常時表示）
+# 議案カードに出す短い効果タグ（イベントID別・選択肢の数に合わせてリストの長さを揃える）
 NEW_PANEL_CHOICE_TAGS = {
-    "short_review": ["費用↑ / 信頼↑ / 全可視化", "費用半減 / 範囲限定", "出費なし / リスク残"],
+    # ── N-3期 体制構築 ──
+    "short_review":               ["費用↑ / 信頼↑ / 全可視化",     "費用半減 / 範囲限定",         "出費なし / リスク残"],
+    "voucher_management":         ["¥8M / 全社展開・電子保管",        "¥3M / 本社のみ",             "ゼロ / 監査受入不可リスク"],
+    "accrual_accounting":         ["¥10M / 完全移行",               "¥4M / 主要取引のみ",          "ゼロ / 限定意見リスク"],
+    "inventory_management":       ["¥12M / 立会体制フル整備",         "¥2M / 手動カウントのみ",      "ゼロ / 立会不可リスク"],
+    "labor_management":           ["¥5M / 爆弾完全排除",             "ゼロ / 労基署爆弾が潜伏"],
+    "job_separation":             ["増員 / 横領リスクゼロ",           "現行維持 / 横領リスク累積"],
+    "antisocial_check":           ["¥3M / リスク排除",              "コスト30%減 / 反社爆弾潜伏"],
+    "related_party_transactions": ["¥4M / 全件整理・審査クリア",      "ゼロ / 審査重大指摘リスク"],
+    "outside_director":           ["¥4M/Q / 候補内定・運用実績確保", "先送り / 審査NG・リスク+15"],
+    "audit_firm_selection":       ["Big4 / 審査最高・受嘱厳格",      "中堅 / バランス良好",         "小規模 / 安価 / 信頼-5"],
+    "series_a_fundraising":       ["¥3億 / シンプル調達",            "¥4億 / ラチェット条項リスク", "見送り / 希薄化なし"],
+    "jsox_preparation":           ["¥15M / 3点セット完備",           "¥5M / 業務記述書のみ"],
+    "cfo_hiring":                 ["¥8M/Q / IPO経験豊富・即戦力",   "¥4M/Q / 経理経験のみ",       "最小コスト / 常勤不在リスク"],
+    "business_plan":              ["¥8M / 本格3ヵ年計画",            "¥1M / 簡易利益計画のみ"],
+    "org_building":               ["¥3M/Q / 管理部門本格強化",       "¥1M/Q / 最低限採用"],
+    "it_systems":                 ["¥20M / ERP導入",                "¥5M / クラウド会計",          "ゼロ / 決算遅延リスク"],
+    "underwriter_selection":      ["大手 / 審査厳格 / 信頼最大",     "中堅 / コスト軽減",           "先送り / 公開指導期間短縮"],
+    # ── 成長・戦略 ──
+    "sales_growth_early":         ["積極投資¥10M / 成功率60%",       "既存顧客深耕 / 安定成長",     "コスト削減 / 成長鈍化"],
+    "sales_growth_late":          ["集中投資¥15M / 成功率55%",       "着実成長 / 審査評価↑",        "コスト削減 / 公募価格↓"],
+    # ── 開示・株式事務 ──
+    "stock_admin":                ["¥8M / フルセット整備",           "¥3M / 最低限対応"],
+    "ir_setup":                   ["¥6M / IR担当採用・サイト構築",   "¥2M / 最低限開示のみ"],
+    "prospectus_preparation":     ["¥15M / 専門家チーム連携",        "¥6M / 社内主体・要所のみ"],
+    "ipo_pricing":                ["強気設定 / 時価総額最大化50%",   "バランス重視 / 安定上場"],
+    # ── AGM選択議案 ──
+    "agm_n3":                     ["業績連動報酬を重点議案に",        "SO計画を重点議案に",          "CG指針制定を重点議案に"],
+    "agm_n2":                     ["監査等委員会移行を重点議案に",    "第三者割当増資を重点議案に",  "内部統制予算承認を重点議案に"],
+    "agm_n1":                     ["J-SOX費用予算を重点議案に",      "役員体制強化を重点議案に",    "適時開示体制を重点議案に"],
+    "agm_n0":                     ["事前説明徹底 / 可決率最大化",    "標準手続きで進める",          "少数株主対話 / リスク管理優先"],
+    "agm_angel_exit":             ["¥10M / IPOまで引き留め交渉",    "¥30M / セカンダリー売却支援", "先送り / 関係悪化リスク"],
+    "agm_vc_grilling":            ["KPIデータで誠実説明",            "環境要因・定性的に説明",      "下方修正・保守的目標提示"],
+    "agm_dilution":               ["資本政策を丁寧に説明",            "¥5M / SO計画で全員恩恵を提示","先送り / 不満蓄積リスク"],
+    # ── 取締役会・監査役 ──
+    "board_strategy":             ["積極投資 / 成功率55%",           "保守計画 / 確実達成優先",     "¥8M / KPI管理強化"],
+    "board_compensation":         ["¥5M / 業績連動型導入",           "固定報酬維持 / シンプル継続", "SO方針決議 / 総会上程"],
+    "kansayaku_report":           ["¥12M / 全指摘緊急対処",          "¥5M / 重要指摘のみ対処",     "先送り / 監査リスク継続"],
+    "kansayaku_independence":     ["¥10M / 独立外部専門家選任",      "¥5M / 知人弁護士（非常勤）", "現状維持 / 独立性欠如リスク"],
+    # ── 株式報酬・資金調達 ──
+    "so_program":                 ["¥5M / 全社員・役員対象",         "¥3M / 役員・マネージャー層", "今回見送り"],
+    "esop_setup":                 ["¥3M / 従業員持株会設立",         "今回は設立しない"],
+    "n_so_exercise":              ["上場前行使を許可",               "上場後行使を推奨"],
+    "series_bc_fundraising":      ["¥800M / 機関投資家大型ラウンド", "¥500M / 戦略パートナー選択型","今回見送り"],
+    # ── 上場直前 ──
+    "preipo_roadshow":            ["¥20M / 国内外フルスケール",      "¥10M / 国内機関投資家中心",  "¥3M / 主幹事主導・最小参加"],
+    "public_offering":            ["大規模配分 / 流動性・知名度最大", "標準規模 / バランス重視",    "小規模公募 / 希薄化最小"],
+    "market_selection":           ["プライム / 時価総額100億↑",      "スタンダード / 10億↑",       "グロース / 5億↑"],
+    # ── コンプライアンス・ガバナンス ──
+    "insider_trading_prevention": ["¥3M / 規程＋研修＋承認システム", "最低限の規程のみ制定"],
+    "whistleblower":              ["¥0.8M/Q / 外部法律事務所委託",  "人事部窓口設置のみ"],
+    "esg_disclosure":             ["¥1.5M/Q / TCFD準拠フル開示",   "法定最低限のみ",             "上場後に先送り"],
+    "stock_split":                ["1:10 大胆な分割",               "1:5 標準的な分割",           "分割しない"],
+    "preferred_conversion":       ["¥2M / 全VCと転換条項を確認",    "既存契約解釈で押し切り"],
+    "disclosure_drill":           ["¥2M / 10シナリオ模擬ドリル",    "省略・上場後に対応"],
+    "lockup_policy":              ["180日 / 投資家信頼最大化",       "90日 / VC要望反映"],
+    "authority_rules":            ["¥6M / 完全規程整備＋運用フロー", "¥1M / 雛形ベース簡易規程"],
+    "budget_control":             ["¥4M / 月次予実管理完全運用",    "¥1M / 年度予算のみ作成"],
+    "internal_audit":             ["¥2M/Q / 独立内部監査室設置",    "経理部員兼務でやり過ごす"],
+    "ip_protection":              ["¥5M / 包括的知財調査・権利化",   "¥0.5M / 既存商標確認のみ"],
+    "accounting_auditor":         ["¥2M / N-1期定時総会で正式選任", "N期（申請期）に持ち越し"],
+    "final_listing_procedure":    ["¥10M / 定款・振替・CG報告全完備","¥5M / 振替・定款変更のみ"],
+    "outside_director_n1":        ["¥8M+¥4M/Q / 臨時総会で緊急選任","先送り / 審査NG確定リスク"],
+    "eogm_articles_amendment":    ["¥8M / 臨時総会招集・再上程",    "先送り / 次回定時総会待ち"],
+    "governance_report_fix":      ["¥5M / CG報告書を提出",          "後回し / 上場承認リスク"],
+    # ── 経営課題 ──
+    "monthly_closing":            ["¥8M+¥1.5M/Q / 10日締め体制",  "¥3M / 20日締めで妥協",       "現状維持 / 四半期報告リスク"],
+    "org_conflict":               ["¥5M / 全社プロジェクト推進",    "¥2M / 段階的導入",           "先送り / 管理体制審査リスク"],
+    "profit_manipulation":        ["正直に下方修正を報告",           "売上前倒し計上（粉飾・違法）", "棚卸評価嵩上げ（粉飾・違法）"],
+    "customer_concentration":     ["¥8M / 新規顧客開拓・分散推進",  "集中リスク開示＋長期契約強化"],
+    "key_person_risk":            ["¥2M/Q / 後継者育成・権限委譲",  "現体制維持＋リスク開示"],
 }
 
 
@@ -1008,6 +1110,8 @@ class GameSession:
         self._scheduled_crises: List[tuple] = []
         # 最後のGemini APIエラー（UI診断用）
         self._last_gemini_error: str = ""
+        # IPO先生アドバイス表示済みフラグ（同一イベント内の二重表示防止用・サーバー側ガード）
+        self._advisor_shown: bool = False
         # 前Qの意思決定結果を次ターン冒頭に表示するためのキュー
         # [(event_title, choice_label, result_msg, is_good), ...]
         self._deferred_outcomes: list = []
@@ -1151,7 +1255,9 @@ class GameSession:
 
         elif self.phase == Phase.EVENT_CHOICE:
             if value == "__ADVISOR__":
-                self._show_advisor_advice()   # フェーズ変更なし・アドバイス表示のみ
+                if not self._advisor_shown:
+                    self._advisor_shown = True
+                    self._show_advisor_advice()   # フェーズ変更なし・アドバイス表示のみ
             else:
                 event = self.pending_events[self.pending_event_idx]
                 valid = list("ABCD")[: len(event.choices)]
@@ -1162,7 +1268,9 @@ class GameSession:
 
         elif self.phase == Phase.ALT_CHOICE:
             if value == "__ADVISOR__":
-                self._show_advisor_advice()   # フェーズ変更なし・アドバイス表示のみ
+                if not self._advisor_shown:
+                    self._advisor_shown = True
+                    self._show_advisor_advice()   # フェーズ変更なし・アドバイス表示のみ
             else:
                 valid = list("ABCD")[: len(self._alt_choices)]
                 if value.upper() in valid:
@@ -1178,7 +1286,9 @@ class GameSession:
 
         elif self.phase == Phase.FORTUNE_CHOICE:
             if value == "__ADVISOR__":
-                self._show_advisor_advice()   # フェーズ変更なし
+                if not self._advisor_shown:
+                    self._advisor_shown = True
+                    self._show_advisor_advice()   # フェーズ変更なし
             else:
                 valid = list("ABCD")[: len(self._fortune_choices)]
                 if value.upper() in valid:
@@ -3037,6 +3147,7 @@ class GameSession:
             scene_title = event.title.split('（')[0].strip()
             advisor_body = _compress_event_body(raw_desc)
             self._add(event_intro_card_html(scene_title, advisor_body), "event_panel")
+            self._advisor_shown = False
             self._add("", "clear_advisor")
             self._add(choices_html(event.choices, agenda=True,
                                    tags=NEW_PANEL_CHOICE_TAGS.get(event.id)))
@@ -3053,6 +3164,7 @@ class GameSession:
         self._add(story_panel(desc, panel_title, panel_color, summary=_summary_esc), "event_panel")
         prompt_text = "👤 社長、緊急対応が必要です。どう判断しますか？" if is_world else "👤 社長、あなたならどう判断しますか？"
         self._add(f'<div class="decision-prompt">{prompt_text}</div>')
+        self._advisor_shown = False
         self._add("", "clear_advisor")   # 前イベントのアドバイスパネルをクリア
         # ⏳ タイマークライシス：危機系の外部環境イベントは実時間30秒の砂時計を付与。
         #    時間切れ＝「先送り(B)」を選んだものとして自動進行する。
@@ -3562,6 +3674,7 @@ class GameSession:
                                f"🌍 突発イベント！：{esc(event.title)}",
                                "red"), "event_panel")
         self._add(f'<div class="decision-prompt">👤 社長、緊急対応が必要です。どう判断しますか？</div>')
+        self._advisor_shown = False
         self._add("", "clear_advisor")   # 前イベントのアドバイスパネルをクリア
         # ⏳ タイマークライシス：危機系イベントは実時間30秒の砂時計を付与。
         #    時間切れ＝「先送り(B)」を選んだものとして自動進行する。
@@ -4046,6 +4159,7 @@ class GameSession:
             ]
             self._add(choices_html(self._alt_choices, "AB"))
             self._alt_kind = "pre_exam"   # IPO先生相談用の識別子
+            self._advisor_shown = False
             self._add("", "clear_advisor")   # 前イベントの相談状態をリセット
             self.phase = Phase.ALT_CHOICE
             self._ph("► 選択 (A / B)")
@@ -4139,6 +4253,7 @@ class GameSession:
             ]
             self._add(choices_html(self._alt_choices, "AB"))
             self._alt_kind = "audit_reject"   # IPO先生相談用の識別子
+            self._advisor_shown = False
             self._add("", "clear_advisor")   # 前イベントの相談状態をリセット
             self.phase = Phase.ALT_CHOICE
             self._ph("► 選択 (A / B)")
@@ -4296,6 +4411,7 @@ class GameSession:
         self._add(choices_html(self._alt_choices, "AB"))
         self._alt_next_action = "tse_exam"
         self._alt_kind = "ipo_window"   # IPO先生相談用の識別子
+        self._advisor_shown = False
         self._add("", "clear_advisor")   # 前イベントの相談状態をリセット
         self.phase = Phase.ALT_CHOICE
         self._ph("► 選択 (A / B)")
