@@ -3285,6 +3285,8 @@ details[open] > .deferred-detail-sum::before {
     ov.style.animationDuration = '5.2s';
     void ov.offsetWidth;
     ov.classList.add('agm-show');
+    /* revealBatch の step() にAGM演出終了時刻を通知（演出中は次パネルを待機させる） */
+    window._agmEndTime = Date.now() + 5400;
     /* ①ざわめき → ③結果発表 */
     _agmNoise(card, function () { _agmReveal(ov, rate, isGood); });
   }
@@ -5053,6 +5055,12 @@ details[open] > .deferred-detail-sum::before {
     if (!_pending || gen !== _gen) return;
     var p = _pending;
     if (p.next >= p.items.length) { _pending = null; hidePanel(3500); return; }
+    /* AGM採決演出（ざわめき＋スタンプ）が終わるまで次のパネルを待機する */
+    var _agmWait = Math.max(0, (window._agmEndTime || 0) - Date.now());
+    if (_agmWait > 0) {
+      _typeTimer = setTimeout(function() { step(gen); }, _agmWait);
+      return;
+    }
 
     var item = p.items[p.next];
     p.next++;
