@@ -522,6 +522,7 @@ body:has(.title-screen) #scene-bg { display: none; }
 }
 #board-debate.bd-show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .bd-stage {
+  position: relative;
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid rgba(120,150,180,.35);
@@ -614,13 +615,40 @@ body:has(.title-screen) #scene-bg { display: none; }
   background: rgba(8,14,24,.85);
   border-top: 1px solid rgba(120,150,180,.25);
 }
+/* ── スマホ：右上コンパクト表示 ── */
 @media (max-width: 768px) {
-  #board-debate { top: 54px; width: 96vw; }
-  .bd-scene { height: 98px; gap: 8px; padding: 9px 10px 8px; }
-  .bd-ceo img { width: 64px; height: 64px; }
-  .bd-dir img { width: 44px; height: 44px; }
-  .bd-caption { font-size: 11px; }
-  .bd-bubble { font-size: 11px; }
+  #board-debate {
+    top: 8px; right: 8px; left: auto;
+    transform: translateY(-6px);
+    width: 130px;
+  }
+  #board-debate.bd-show { transform: translateY(0); }
+  .bd-scene { height: 68px; gap: 0; padding: 6px 8px 4px; justify-content: center; }
+  .bd-ceo img { width: 52px; height: 52px; }
+  /* 役員・バブルはコンパクト時は非表示 */
+  .bd-dir { display: none; }
+  .bd-bubble { display: none; }
+  .bd-think { font-size: 15px; top: -12px; right: -8px; }
+  .bd-sweat { font-size: 12px; top: 2px; left: -8px; }
+  .bd-caption { font-size: 10px; padding: 4px 6px 5px; }
+  /* ×ボタン */
+  .bd-close { display: flex; }
+}
+/* ×閉じるボタン（スマホのみ表示） */
+.bd-close {
+  display: none;
+  position: absolute;
+  top: 4px; right: 5px;
+  width: 20px; height: 20px;
+  align-items: center; justify-content: center;
+  background: rgba(255,255,255,.18);
+  border: 1px solid rgba(255,255,255,.3);
+  border-radius: 50%;
+  color: #fff;
+  font-size: 13px; line-height: 1;
+  cursor: pointer;
+  z-index: 10;
+  pointer-events: auto;
 }
 
 /* ════════════════════════════════════════════
@@ -2544,6 +2572,7 @@ details[open] > .deferred-detail-sum::before {
 <!-- 🏛 取締役会・熟議演出：役員が議論し社長が悩む -->
 <div id="board-debate">
   <div class="bd-stage">
+    <button class="bd-close" id="bd-close-btn" aria-label="閉じる">×</button>
     <div class="bd-scene">
       <div class="bd-bubble" id="bd-bubble"></div>
       <div class="bd-ceo">
@@ -3188,6 +3217,14 @@ details[open] > .deferred-detail-sum::before {
     clearInterval(_bdTurn); clearInterval(_bdMouth);
     _bdTurn = null; _bdMouth = null;
     if (ov) ov.classList.remove('bd-show');
+  }
+  /* ×ボタン（スマホ用） */
+  var _bdCloseBtn = document.getElementById('bd-close-btn');
+  if (_bdCloseBtn) {
+    _bdCloseBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      stopBoardDebate();
+    });
   }
 
   /* 🗳 株主総会・議決演出：①投資家のざわめき→②集計→③可決/否決スタンプ＋議事槌音 */
