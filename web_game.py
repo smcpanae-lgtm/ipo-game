@@ -6521,22 +6521,12 @@ class GameSession:
 # ══════════════════════════════════════════════
 # Flask ルーティング
 # ══════════════════════════════════════════════
-_LOGO_PATH      = os.path.join(os.path.dirname(__file__), "rogo.png")
 # タイトル画像：同ディレクトリ内の title_bg.png を優先、なければ環境変数パス、なければ旧パス
 _TITLE_IMG_PATH = (
     os.environ.get("TITLE_IMG_PATH")
     or os.path.join(os.path.dirname(__file__), "title_bg.png")
 )
 
-
-
-@app.route("/logo.png")
-def serve_logo():
-    """スタート画面バナー用ロゴ画像を配信する"""
-    logo = os.path.abspath(_LOGO_PATH)
-    if os.path.isfile(logo):
-        return send_file(logo, mimetype="image/png")
-    return "", 404
 
 
 @app.route("/title-img.png")

@@ -104,30 +104,6 @@ html:has(.title-screen) {
 }
 #hdr-save-btn:hover { background: rgba(255,215,0,.3); }
 
-/* ヘッダーロゴ（左側絶対配置） */
-#hdr-logo-link {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  opacity: 0.90;
-  transition: opacity .2s, filter .2s;
-  filter: drop-shadow(0 0 5px rgba(255,215,0,.35));
-  z-index: 10;
-}
-#hdr-logo-link:hover {
-  opacity: 1;
-  filter: drop-shadow(0 0 12px rgba(255,215,0,.7));
-}
-#hdr-logo-img {
-  height: 58px;
-  max-width: 130px;
-  object-fit: contain;
-  border-radius: 4px;
-}
-
 /* ─── メインエリア（左サイドバー + ストーリー + 右サイドバー）─── */
 #main {
   display: grid;
@@ -2260,7 +2236,6 @@ details[open] > .deferred-detail-sum::before {
   #hdr {
     padding: 0 52px 0 8px;
   }
-  #hdr-logo-link { display: none; }
   #hdr-title { font-size: 13px; letter-spacing: 1px; }
   #hdr-deco  { font-size: 11px; }
 
@@ -2339,7 +2314,6 @@ details[open] > .deferred-detail-sum::before {
 @media (orientation: landscape) and (max-height: 500px) {
   #app  { grid-template-rows: 40px 1fr 46px auto; }
   #hdr  { padding: 0 48px 0 8px; }
-  #hdr-logo-link { display: none; }
   #hdr-title { font-size: 12px; letter-spacing: 2px; }
   #hdr-deco  { font-size: 10px; }
   #main { grid-template-columns: 168px 1fr 146px; }
@@ -2615,9 +2589,6 @@ details[open] > .deferred-detail-sum::before {
 
   <!-- ヘッダー -->
   <div id="hdr">
-    <a id="hdr-logo-link" href="https://ipo-kentei.or.jp/" target="_blank" rel="noopener" title="IPO実務検定 公式サイト">
-      <img id="hdr-logo-img" src="/logo.png" alt="IPO実務検定" onerror="this.style.display='none'">
-    </a>
     <span id="hdr-deco">◆◆◆</span>
     <span id="hdr-title">THE IPO PATH : 栄光への決断</span>
     <span id="hdr-deco">◆◆◆</span>
